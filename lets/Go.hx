@@ -171,7 +171,7 @@ class Go
 		return this;
 	}
 	/**
-	 * on completion of the animation call a function with 
+	 * on completion of the animation call a function with param(s)
 	 * 
 	 * @param  func         	function to call when animition is complete
 	 * @param  arr<Dynamic> 	params send to function
@@ -181,6 +181,19 @@ class Go
 	{
 		_options.onComplete = func;
 		_options.onCompleteParams = arr;
+		return this;
+	}
+	/**
+	 * on update of the animation call a function with param(s)
+	 * 
+	 * @param  func         	function to call when animition is updated
+	 * @param  arr<Dynamic> 	params send to function
+	 * @return              Go
+	 */
+	inline public function onUpdate(func:Dynamic, arr:Array<Dynamic>):Go
+	{
+		_options.onUpdate = func;
+		_options.onUpdateParams = arr;
 		return this;
 	}
 	/**
@@ -247,6 +260,7 @@ class Go
 
 	private function updateProperties(time:Int):Void 
 	{
+		if( Reflect.isFunction(_options.onUpdate) ) _options.onUpdate.apply( null, _options.onUpdateParams );
 		for(n in _props.keys())
 		{
 			var range = _props.get(n);
