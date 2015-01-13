@@ -1,5 +1,7 @@
 # go
 Lightweight tween library for Haxe.
+
+[![Everybody in the place, lets go](http://img.youtube.com/vi/WY87o9IZXWg/0.jpg)](https://www.youtube.com/watch?v=WY87o9IZXWg)
  
 Inspired by tween engines written in Haxe and ActionScript. I just wanted to see if I could build a tweening engine myself.
 
