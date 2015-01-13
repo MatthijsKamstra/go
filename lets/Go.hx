@@ -225,6 +225,20 @@ class Go
 		this._easing = easing;
 		return this;
 	}
+
+	// ____________________________________ public ____________________________________
+
+	/**
+	 * stop a Go tween while its animating
+	 *
+	 * @example 	var tween : Go = Go.to(foobarMc, 20).x(100);
+	 *           	// oh dumb dumb, I want to stop that long animation because x-reason
+	 *           	tween.stop();
+	 */
+	public function stop():Void
+	{
+		destroy();
+	}
 	
 	// ____________________________________ private ____________________________________
 
