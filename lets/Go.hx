@@ -11,15 +11,15 @@ class Go
 	private static var _trigger:Timer;
 	private static var _tweens:Array<Go> = new Array<Go>();
 
-	private var _easing:Float->Float;
 	private var _target:Dynamic;
 	private var _duration:Int;
+	private var _easing:Float->Float = Easing.linear;
+	private var _options:Dynamic = cast{};
 
 	private var _props = new Map<String,Range>();
 
-	private var _options:Dynamic;
 	private var _isFrom:Bool = false;
-	private var _isComplete:Bool = false;
+	private var _isYoyo:Bool = false;
 
 	private var _initTime:Int = 0;
 
@@ -36,8 +36,8 @@ class Go
 	{
 		this._target = target;
 		this._duration = Std.int (duration * 1000);
-		this._easing = Easing.linear;
-		this._options = cast{};
+		// this._easing = Easing.linear;
+		// this._options = cast{};
 		this._initTime = Lib.getTimer();
 		_tweens.push(this);
 		// trace('New Go - _target: ' + _target + ' / _duration: ' + _duration+  ' / _initTime: ' + _initTime+ ' / _tweens.length: ' + _tweens.length);
@@ -136,6 +136,17 @@ class Go
 		return this;
 	}
 	/**
+	 * yoyo to the original values of an object
+	 * 
+	 * @return       Go
+	 */
+	inline public function yoyo():Go
+	{
+		trace( "yoyo");
+		_isYoyo = true;
+		return this;
+	}
+	/**
 	 * change the property of an object
 	 * 
 	 * @param  key   	description of the property as string
@@ -228,6 +239,21 @@ class Go
 	{
 		//trace('complete :: _duration: ' + _duration + ' / _initTime: ' + _initTime + ' / _tweens.length: ' + _tweens.length);
 	
+		if(_isYoyo) 
+		{
+			// [mck] reverse the props back to the original state			
+			for(n in _props.keys())
+			{
+				var range = _props.get(n);
+				var _rangeReverse = {key:n, from:range.to, to:range.from };
+				_props.set (n, _rangeReverse );
+			}
+			// [mck] reset the time and ignore this function for now... :)
+			this._initTime = Lib.getTimer();
+			_isYoyo = false;
+			return null;
+		}
+
 		var func = _options.onComplete;
 		var arr = _options.onCompleteParams;
 
@@ -242,8 +268,8 @@ class Go
 		// [mck] cleaning up
 		if( _options )
 		{
-			_options = null;
-			_easing = null;
+			_easing = Easing.linear;
+			_options = cast{};
 			_target = null;
 			_props = null;
 			_duration = 0;
