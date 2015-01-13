@@ -22,6 +22,7 @@ class Go
 	private var _isYoyo:Bool = false;
 
 	private var _initTime:Int = 0;
+	private var _delay:Int = 0;
 
 	/**
 	 * Animate an object to another state (like position, scale, rotation, alpha)
@@ -142,8 +143,17 @@ class Go
 	 */
 	inline public function yoyo():Go
 	{
-		trace( "yoyo");
 		_isYoyo = true;
+		return this;
+	}
+	/**
+	 * delay the animation in seconds
+	 * 
+	 * @return       Go
+	 */
+	inline public function delay(value:Float):Go
+	{
+		_delay = Std.int (value * 1000);
 		return this;
 	}
 	/**
@@ -214,6 +224,17 @@ class Go
 	
 	private function update():Void
 	{
+		// [mck] check for delay
+		if (_delay > 0) {
+			var waitTime = (Lib.getTimer() - _initTime);
+			if(waitTime >= _delay) {
+				_delay = 0;
+				_initTime = Lib.getTimer();
+			} else  {
+				return null;
+			}
+		}
+
 		var progressed = Lib.getTimer() - _initTime;
 		if( progressed >= _duration){
 			// [mck] setProperties in the final state
@@ -274,6 +295,7 @@ class Go
 			_props = null;
 			_duration = 0;
 			_initTime = 0;
+			_delay = 0;
 		}
 	}
 
