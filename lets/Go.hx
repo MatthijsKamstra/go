@@ -78,6 +78,21 @@ class Go
 		return go;
 	}
 
+	/**
+	 * Use Go to do a delayed call to a function
+	 * 
+	 * @example		lets.Go.timer(1.5).onComplete(onCompleteHandler);
+	 * 
+	 * @param  duration 	in seconds	
+	 * @return          Go
+	 */	
+	static inline public function timer(duration:Float):Go
+	{
+		var go = new Go(null, duration);
+		return go;
+	}
+
+
 	// ____________________________________ properties ____________________________________
 
 	/**
@@ -177,10 +192,11 @@ class Go
 	 * @param  arr<Dynamic> 	params send to function
 	 * @return              Go
 	 */
-	inline public function onComplete(func:Dynamic, arr:Array<Dynamic>):Go
+	inline public function onComplete(func:Dynamic, ?arr:Array<Dynamic>):Go
 	{
 		_options.onComplete = func;
 		_options.onCompleteParams = arr;
+		// _options.onCompleteParams = (arr == null ) ? [] : arr;
 		return this;
 	}
 	/**
@@ -190,7 +206,7 @@ class Go
 	 * @param  arr<Dynamic> 	params send to function
 	 * @return              Go
 	 */
-	inline public function onUpdate(func:Dynamic, arr:Array<Dynamic>):Go
+	inline public function onUpdate(func:Dynamic, ?arr:Array<Dynamic>):Go
 	{
 		_options.onUpdate = func;
 		_options.onUpdateParams = arr;
