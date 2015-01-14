@@ -294,7 +294,7 @@ class Go
 	{
 		if( Reflect.isFunction(_options.onUpdate) ) {
 			var func = _options.onUpdate;
-			var arr = _options.onUpdateParams;
+			var arr = (_options.onUpdateParams != null) ? _options.onUpdateParams : [];
 			Reflect.callMethod( func, func, arr );
 		}
 		for(n in _props.keys())
@@ -326,7 +326,7 @@ class Go
 		}
 
 		var func = _options.onComplete;
-		var arr = _options.onCompleteParams;
+		var arr = (_options.onCompleteParams != null) ? _options.onCompleteParams : [];
 
 		destroy();
 
