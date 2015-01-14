@@ -6,6 +6,8 @@ import lets.Easing;
 import haxe.Timer;
 import flash.Lib;
 
+import flash.display.Sprite;
+
 class Go 
 {
 	private static var _trigger:Timer;
@@ -87,8 +89,8 @@ class Go
 	 * @return          Go
 	 */	
 	static inline public function timer(duration:Float):Go
-	{
-		var go = new Go(null, duration);
+	{	
+		var go = new Go(new Sprite(), duration);
 		return go;
 	}
 
@@ -290,7 +292,11 @@ class Go
 
 	private function updateProperties(time:Int):Void 
 	{
-		if( Reflect.isFunction(_options.onUpdate) ) _options.onUpdate.apply( null, _options.onUpdateParams );
+		if( Reflect.isFunction(_options.onUpdate) ) {
+			var func = _options.onUpdate;
+			var arr = _options.onUpdateParams;
+			Reflect.callMethod( func, func, arr );
+		}
 		for(n in _props.keys())
 		{
 			var range = _props.get(n);
@@ -324,7 +330,7 @@ class Go
 
 		destroy();
 
-		if( Reflect.isFunction(func) ) func.apply( null, arr );
+		if( Reflect.isFunction(func) ) Reflect.callMethod( func, func, arr );
 	}
 
 	private function destroy():Void
