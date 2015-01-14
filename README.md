@@ -1,4 +1,4 @@
-# go
+# lets Go
 Lightweight tween library for Haxe.
 
 [![Everybody in the place, lets go](http://img.youtube.com/vi/WY87o9IZXWg/0.jpg)](https://www.youtube.com/watch?v=WY87o9IZXWg)
@@ -59,6 +59,30 @@ Change the alpha of an object (value from 0 to 1)
 Go.to(sprite, 1.5).alpha(.5);
 ```
 
+Change the scale of an object (value 1 is original scale/100% , 0.5 will be 50%, 2 will be 200%)
+
+```
+Go.to(sprite, 1.5).scale(.5);
+```
+
+Delay an animation for 2 seconds
+
+```
+Go.to(sprite, 1.5).scale(.5).delay(2);
+```
+
+Yoyo an animation (play the animation and reverse it back to the original values)
+
+```
+Go.to(sprite, 1.5).x(100).yoyo();
+```
+
+Delay an animation for 3 seconds and then start
+
+```
+Go.to(sprite, 1.5).x(100).delay(3);
+```
+
 
 ## Concept
 
@@ -84,6 +108,9 @@ You can animate the default **properties** of a DisplayObject:
 * rotation 
 * alpha
 * scale
+* delay
+* yoyo
+
 
 `Go.from(target, 1.5).x(100).y(100).rotation(10).alpha(.5).scale(2);`
 
