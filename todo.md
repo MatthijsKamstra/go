@@ -15,3 +15,4 @@ version 0.0.3
 #TODO
 * documentation?
 * performance?
+* easeIn and easeOut
