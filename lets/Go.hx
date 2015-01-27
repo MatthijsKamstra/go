@@ -1,7 +1,8 @@
-
 package lets;
 
-import lets.Easing;
+// import lets.Easing;
+import lets.easing.Quad;
+import lets.easing.IEasing;
 
 import haxe.Timer;
 import flash.Lib;
@@ -15,7 +16,7 @@ class Go
 
 	private var _target:Dynamic;
 	private var _duration:Int;
-	private var _easing:Float->Float = Easing.linear;
+	private var _easing:IEasing = Quad.easeOut;
 	private var _options:Dynamic = cast{};
 
 	private var _props = new Map<String,Range>();
@@ -32,10 +33,10 @@ class Go
 	 * @example		lets.Go.to(foobarMc, 1.5);
 	 * 
 	 * @param  target   	object to animate
-	 * @param  duration 	in seconds	
+	 * @param  duration 	in seconds	(default value is .5 seconds)
 	 * @return          Go
 	 */
-	public function new(target:Dynamic, duration:Float)
+	public function new(target:Dynamic, ?duration:Float = .5)
 	{
 		this._target = target;
 		this._duration = Std.int (duration * 1000);
@@ -54,10 +55,10 @@ class Go
 	 * @example		lets.Go.to(foobarMc, 1.5);
 	 * 
 	 * @param  target   	object to animate
-	 * @param  duration 	in seconds	
+	 * @param  duration 	in seconds	(default value is .5 seconds)
 	 * @return          Go
 	 */
-	static inline public function to(target:Dynamic, duration:Float):Go
+	static inline public function to(target:Dynamic, ?duration:Float = .5):Go
 	{
 		var go = new Go(target, duration);
 		go._isFrom = false;
@@ -70,10 +71,10 @@ class Go
 	 * @example		lets.Go.from(foobarMc, 1.5);
 	 * 
 	 * @param  target   	object to animate
-	 * @param  duration 	in seconds	
+	 * @param  duration 	in seconds	(default value is .5 seconds)
 	 * @return          Go
 	 */	
-	static inline public function from(target:Dynamic, duration:Float):Go
+	static inline public function from(target:Dynamic, ?duration:Float = .5):Go
 	{
 		var go = new Go(target, duration);
 		go._isFrom = true;
@@ -97,6 +98,19 @@ class Go
 
 	// ____________________________________ properties ____________________________________
 
+	/**
+	 * change the duration of the animation (default is .5 seconds) 
+	 *
+	 * @example		lets.Go.to(foobarMc).duration(10);
+	 * 
+	 * @param  value 	duration in seconds
+	 * @return       Go
+	 */
+	inline public function duration(value:Float):Go
+	{
+		this._duration = Std.int (value * 1000);
+		return this;
+	}
 	/**
 	 * change the x value of an object
 	 * 
@@ -215,14 +229,14 @@ class Go
 		return this;
 	}
 	/**
-	 * change the default (Easing.linear) easing 
+	 * change the default (lets.easing.Quad.easeOut) easing 
 	 *
-	 * @example		lets.Go.from(foobarMc, 1.5).x(500).easing(lets.Easing.quad);
+	 * @example		lets.Go.from(foobarMc, 1.5).x(500).easing(lets.easing.Cubic.easeOut);
 	 * 
-	 * @param  easing->Float 		check Easing class
+	 * @param  easing
 	 * @return		Go
 	 */
-	inline public function ease(easing:Float->Float):Go
+	inline public function ease(easing:IEasing):Go
 	{
 		this._easing = easing;
 		return this;
@@ -233,7 +247,7 @@ class Go
 	/**
 	 * stop a Go tween while its animating
 	 *
-	 * @example 	var tween : Go = Go.to(foobarMc, 20).x(100);
+	 * @example 	var tween : Go = lets.Go.to(foobarMc, 20).x(100);
 	 *           	// oh dumb dumb, I want to stop that long animation because x-reason
 	 *           	tween.stop();
 	 */
@@ -300,7 +314,7 @@ class Go
 		for(n in _props.keys())
 		{
 			var range = _props.get(n);
-			Reflect.setProperty(_target, n , _easing(time/_duration) * (range.to-range.from) + range.from);
+			Reflect.setProperty(_target, n, _easing.ease( time, range.from, (range.to-range.from), _duration ) );
 		}
 		// else throw( "Property "+propertyName+" not found in target!" );
 	}
@@ -339,7 +353,7 @@ class Go
 		// [mck] cleaning up
 		if( _options )
 		{
-			_easing = Easing.linear;
+			_easing = Quad.easeOut;
 			_options = cast{};
 			_target = null;
 			_props = null;

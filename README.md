@@ -1,5 +1,5 @@
 # lets Go
-Lightweight tween library for Haxe.
+Lightweight and simple tween library for Haxe.
 
 [![Everybody in the place, lets go](http://img.youtube.com/vi/WY87o9IZXWg/0.jpg)](https://www.youtube.com/watch?v=WY87o9IZXWg)
  
@@ -33,6 +33,8 @@ Animate a sprite in 1.5 second to x postion 100
 
 ```
 Go.to(sprite, 1.5).x(100);
+// or
+Go.to(sprite).duration(1.5).x(100);
 ```
 
 Animate a sprite in 1.5 second to x and y postion
@@ -83,6 +85,15 @@ Delay an animation for 3 seconds and then start
 Go.to(sprite, 1.5).x(100).delay(3);
 ```
 
+Change default easing
+
+```
+import lets.Go;
+import lets.easing.Elastic;
+
+Go.to(sprite, 1.5).x(100).ease(Elastic.easeOut);
+```
+
 
 ## Concept
 
@@ -123,19 +134,19 @@ Call an **onComplete** when the animation id done
 
 Use simple easing 
 
-* 	linear
-* 	quad
-* 	cubic
-* 	quart
-* 	quint
-* 	sine
-* 	circ
-* 	expo
-* 	back
-* 	bounce
-* 	elastic
-* 	reverse
-* 	reflect
+* Back
+* Bounce
+* Cubic
+* Elastic
+* Expo
+* Linear
+* Quad
+* Quart
+* Quint
+* Sine
+* ~~circ~~
+* ~~reverse~~
+* ~~reflect~~
 
 ## Tween engines I used for inspiration
 
@@ -149,4 +160,5 @@ AS3
 
 * https://code.google.com/p/eaze-tween/
 * https://code.google.com/p/fatlib/source/browse/trunk/src/org/fatlib/utils/Tween.as
+* http://greensock.com/
 
