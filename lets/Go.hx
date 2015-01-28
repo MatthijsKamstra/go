@@ -1,6 +1,5 @@
 package lets;
 
-// import lets.Easing;
 import lets.easing.Quad;
 import lets.easing.IEasing;
 
@@ -36,15 +35,18 @@ class Go
 	 * @param  duration 	in seconds	(default value is .5 seconds)
 	 * @return          Go
 	 */
+	
+
+	// [mck] perhaps its better to use DisplayObjectContainer instead of Dynamic for speed purposite
+
 	public function new(target:Dynamic, ?duration:Float = .5)
 	{
 		this._target = target;
 		this._duration = Std.int (duration * 1000);
-		// this._easing = Easing.linear;
-		// this._options = cast{};
 		this._initTime = Lib.getTimer();
 		_tweens.push(this);
 		// trace('New Go - _target: ' + _target + ' / _duration: ' + _duration+  ' / _initTime: ' + _initTime+ ' / _tweens.length: ' + _tweens.length);
+		
 		// [mck] extreme little delay to make sure all the values are set
 		haxe.Timer.delay(init, 1); // 1 milisecond delay
 	}
@@ -260,7 +262,8 @@ class Go
 
 	private function init():Void
 	{
-		var framerate:Int = 30;
+		// [mck] make sure we use the frameRate from the original movie
+		var framerate:Int = (openfl.Lib.current.stage.frameRate > 30) ? Std.int (openfl.Lib.current.stage.frameRate) : 30;
 		_trigger = (_trigger == null) ? new Timer(Std.int(1000 / framerate)) : _trigger;
 		_trigger.run = onEnterFrameHandler;
 	}
