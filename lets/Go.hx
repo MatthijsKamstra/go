@@ -6,10 +6,12 @@ import lets.easing.IEasing;
 import haxe.Timer;
 import flash.Lib;
 
-import flash.display.Sprite;
+import flash.display.DisplayObjectContainer;
 
 class Go 
 {
+	public static var version = '0.0.4-e';
+
 	private static var _trigger:Timer;
 	private static var _tweens:Array<Go> = new Array<Go>();
 
@@ -35,17 +37,13 @@ class Go
 	 * @param  duration 	in seconds	(default value is .5 seconds)
 	 * @return          Go
 	 */
-	
-
-	// [mck] perhaps its better to use DisplayObjectContainer instead of Dynamic for speed purposite
-
-	public function new(target:Dynamic, ?duration:Float = .5)
+	public function new(target:DisplayObjectContainer, ?duration:Float = .5)
 	{
 		this._target = target;
 		this._duration = Std.int (duration * 1000);
 		this._initTime = Lib.getTimer();
+		// if(!Lambda.has(_tweens, this)) 
 		_tweens.push(this);
-		// trace('New Go - _target: ' + _target + ' / _duration: ' + _duration+  ' / _initTime: ' + _initTime+ ' / _tweens.length: ' + _tweens.length);
 		
 		// [mck] extreme little delay to make sure all the values are set
 		haxe.Timer.delay(init, 1); // 1 milisecond delay
@@ -60,7 +58,7 @@ class Go
 	 * @param  duration 	in seconds	(default value is .5 seconds)
 	 * @return          Go
 	 */
-	static inline public function to(target:Dynamic, ?duration:Float = .5):Go
+	static inline public function to(target:DisplayObjectContainer, ?duration:Float = .5):Go
 	{
 		var go = new Go(target, duration);
 		go._isFrom = false;
@@ -76,7 +74,7 @@ class Go
 	 * @param  duration 	in seconds	(default value is .5 seconds)
 	 * @return          Go
 	 */	
-	static inline public function from(target:Dynamic, ?duration:Float = .5):Go
+	static inline public function from(target:DisplayObjectContainer, ?duration:Float = .5):Go
 	{
 		var go = new Go(target, duration);
 		go._isFrom = true;
@@ -93,7 +91,7 @@ class Go
 	 */	
 	static inline public function timer(duration:Float):Go
 	{	
-		var go = new Go(new Sprite(), duration);
+		var go = new Go(null, duration);
 		return go;
 	}
 
@@ -182,11 +180,12 @@ class Go
 	/**
 	 * delay the animation in seconds
 	 * 
+	 * @param  timeInSeconds 	delay in seconds 
 	 * @return       Go
 	 */
-	inline public function delay(value:Float):Go
+	inline public function delay(timeInSeconds:Float):Go
 	{
-		_delay = Std.int (value * 1000);
+		_delay = Std.int (timeInSeconds * 1000);
 		return this;
 	}
 	/**
@@ -213,8 +212,8 @@ class Go
 	inline public function onComplete(func:Dynamic, ?arr:Array<Dynamic>):Go
 	{
 		_options.onComplete = func;
-		_options.onCompleteParams = arr;
-		// _options.onCompleteParams = (arr == null ) ? [] : arr;
+		// _options.onCompleteParams = arr;
+		_options.onCompleteParams = (arr != null ) ? arr : [];
 		return this;
 	}
 	/**
@@ -227,7 +226,8 @@ class Go
 	inline public function onUpdate(func:Dynamic, ?arr:Array<Dynamic>):Go
 	{
 		_options.onUpdate = func;
-		_options.onUpdateParams = arr;
+		// _options.onUpdateParams = arr;
+		_options.onUpdateParams = (arr != null) ? arr : [];
 		return this;
 	}
 	/**
@@ -264,20 +264,22 @@ class Go
 	{
 		// [mck] make sure we use the frameRate from the original movie
 		var framerate:Int = (openfl.Lib.current.stage.frameRate > 30) ? Std.int (openfl.Lib.current.stage.frameRate) : 30;
+		// var framerate:Int = 30;
 		_trigger = (_trigger == null) ? new Timer(Std.int(1000 / framerate)) : _trigger;
 		_trigger.run = onEnterFrameHandler;
 	}
 
 	private function onEnterFrameHandler( ):Void
 	{
+		var _total = _tweens.length;
 		if(_initTime == 0) return;
-		if (_tweens.length <= 0)
+		if (_total <= 0)
 		{
 			// [mck] stop timer, we are done!
 			_trigger.stop();
 			_trigger.run = null;
 		} 
-		else for( i in 0..._tweens.length ) 
+		else for( i in 0..._total ) 
 		{
 			// [mck] FIXME :: don't know exactly why I need to check if _tweens[i] != null, but I do. 
 			if(_tweens[i] != null) _tweens[i].update();
@@ -298,6 +300,9 @@ class Go
 		}
 
 		var progressed = Lib.getTimer() - _initTime;
+
+		// trace(_target.name + ' // progressed: ' + progressed + ' >= _duration: ' + _duration);
+
 		if( progressed >= _duration){
 			// [mck] setProperties in the final state
 			updateProperties(_duration);
@@ -311,13 +316,17 @@ class Go
 	{
 		if( Reflect.isFunction(_options.onUpdate) ) {
 			var func = _options.onUpdate;
-			var arr = (_options.onUpdateParams != null) ? _options.onUpdateParams : [];
+			var arr = _options.onUpdateParams;
 			Reflect.callMethod( func, func, arr );
 		}
 		for(n in _props.keys())
 		{
 			var range = _props.get(n);
+			#if flash
+			untyped _target[n] = _easing.ease( time, range.from, (range.to-range.from), _duration ) ;
+			#else
 			Reflect.setProperty(_target, n, _easing.ease( time, range.from, (range.to-range.from), _duration ) );
+			#end
 		}
 		// else throw( "Property "+propertyName+" not found in target!" );
 	}
@@ -343,7 +352,7 @@ class Go
 		}
 
 		var func = _options.onComplete;
-		var arr = (_options.onCompleteParams != null) ? _options.onCompleteParams : [];
+		var arr = _options.onCompleteParams;
 
 		destroy();
 
