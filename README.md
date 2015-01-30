@@ -132,7 +132,7 @@ and value via **prop**
 
 Call an **onComplete** when the animation id done
 
-Use simple easing 
+Use easing classes with easeIn/easeOut/easeInOut
 
 * Back
 * Bounce
