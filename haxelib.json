@@ -4,7 +4,7 @@
 	"license": "MIT",
 	"tags": ["cross", "flash", "cpp", "neko", "js" ],
 	"description": "Go is a simple tween library that uses \"chaining\" syntax.",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"releasenote": "added stop tween, bug fixes for neko/cpp",
 	"contributors": ["Matthijs Kamstra aka [mck]"],
 	"dependencies": {}
