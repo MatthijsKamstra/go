@@ -8,6 +8,7 @@ version 0.0.4
 * documentation code
 * fixed bug: last animation added but finished first would kill the other animations
 * improved performance 
+* killAll()
 
 version 0.0.3
 * added a tween stop function 
