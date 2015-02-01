@@ -1,16 +1,17 @@
 # lets Go
-Lightweight and simple tween library for Haxe.
+Lightweight, simple, compact, chainable tween library for Haxe/Openfl.
 
 [![Everybody in the place, lets go](http://img.youtube.com/vi/WY87o9IZXWg/0.jpg)](https://www.youtube.com/watch?v=WY87o9IZXWg)
  
 Inspired by tween engines written in Haxe and ActionScript. I just wanted to see if I could build a tweening engine myself.
+And take all the good stuff from alll those other tween libraries (like Actuate and TweenMax)
 
 ####WIP and not ready for production
-
+I will be using it in my Haxe project to test it in a production environment.
 
 ## Installation
 
-Because this is an experiment, there is no haxelib install.
+This is still WIP, an experiment, so I decide not to add it to haxelib yet.
 
 But if you want to try it out via *haxelib*, you can install it with git 
 
@@ -119,15 +120,18 @@ You can animate the default **properties** of a DisplayObject:
 * rotation 
 * alpha
 * scale
-* delay
-* yoyo
+
+And some extra usefull functions
+
+* delay (delay the animation)
+* yoyo (tween will run in the opposite direction so that the tween appears to go back and forth)
 
 
 `Go.from(target, 1.5).x(100).y(100).rotation(10).alpha(.5).scale(2);`
 
 and value via **prop**
 
-`Go.from(obj, 1.5).prop('counter',100)`
+`Go.to(obj, 1.5).prop('counter',100)`
 
 
 Call an **onComplete** when the animation id done
