@@ -4,7 +4,8 @@ import openfl.display.Sprite;
 import openfl.events.Event;
 
 import lets.Go;
-import lets.Easing;
+import lets.easing.*;
+// import lets.Easing;
 
 // import motion.easing.Quad;
 // import motion.Actuate;
@@ -26,7 +27,7 @@ class Main extends Sprite
 		var targetY = Math.random () * stage.stageHeight;
 		
 		// Actuate.tween (circle, duration, { x: targetX, y: targetY }, false).ease (Quad.easeOut).onComplete (animateCircle, [ circle ]);	
-		Go.to(circle, duration).x(targetX).y(targetY).ease(lets.Easing.quad).onComplete(animateCircle, [ circle ]);
+		Go.to(circle, duration).x(targetX).y(targetY).ease(lets.easing.Quad.easeOut).onComplete(animateCircle, [ circle ]);
 	}
 		
 	private function construct ():Void 

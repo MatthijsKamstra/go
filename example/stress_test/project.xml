@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project>
+	
+	<meta title="GoStress" package="com.sample.project" version="1.0.0" company="Company Name" />
+	<app main="Main" path="Export" file="GoStress" />
+	
+	<source path="Source" />
+	<source path="Lib" />
+	
+	<haxelib name="openfl" />
+	<haxelib name="go" />
+	<haxelib name="actuate" />
+
+	<window width="500" height="500" background="0xFFFFFF" fps="60" />
+	
+	<assets path="Assets" rename="assets" exclude="openfl.svg" />
+	<icon path="Assets/openfl.svg" />
+	
+</project>
