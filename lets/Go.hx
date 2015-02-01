@@ -4,13 +4,42 @@ import lets.easing.Quad;
 import lets.easing.IEasing;
 
 import haxe.Timer;
-import flash.Lib;
 
+import flash.Lib;
 import flash.display.DisplayObjectContainer;
 
+/**
+Lightweight, simple, compact, chainable tween library for Haxe/Openfl.
+
+```
+import lets.Go;
+import lets.easing.IEasing;
+
+function new ()
+{
+	var _circle = new Sprite();
+	_circle.name = 'circle';
+	_circle.graphics.beginFill(0xd35400,1);
+	_circle.graphics.drawCircle(0,0,50);
+	_circle.graphics.endFill();
+	this.addChild(_circle);
+
+	Go.to(_square, 2.5).x(500).y(200).scale(2).rotation(180).ease(lets.easing.Linear.easeNone).onComplete(onCompleteHandler, ['_square']);
+}
+
+function onCompleteHandler(value:String):Void 
+{ 
+	trace('onCompleteHandler - arg : '+ value); 
+}
+```
+
+ */
 class Go 
 {
-	public static var version = '0.0.4-e';
+	/**
+		Current Go version
+	 */
+	public static var version = '0.0.4-g';
 
 	private static var _trigger:Timer;
 	private static var _tweens:Array<Go> = new Array<Go>();
@@ -25,13 +54,21 @@ class Go
 	private var _isFrom:Bool = false;
 	private var _isYoyo:Bool = false;
 
-	private var _initTime:Int = 0;
+	private var _initTime:Int = -1;
 	private var _delay:Int = 0;
+
+	// [mck] for debug 
+	public static var id:Int = -1;
+	private var _id : String;
+	private static var DEBUG : Bool = false;
+
 
 	/**
 	 * Animate an object to another state (like position, scale, rotation, alpha)
 	 * 
-	 * @example		lets.Go.to(foobarMc, 1.5);
+	 * ```
+	 * lets.Go.to(foobarMc, 1.5);
+	 * ```
 	 * 
 	 * @param  target   	object to animate
 	 * @param  duration 	in seconds	(default value is .5 seconds)
@@ -42,6 +79,10 @@ class Go
 		this._target = target;
 		this._duration = Std.int (duration * 1000);
 		this._initTime = Lib.getTimer();
+
+		id++;
+		this._id = "Go-" + version + "-" + Std.string (id);
+
 		// if(!Lambda.has(_tweens, this)) 
 		_tweens.push(this);
 		
@@ -50,9 +91,11 @@ class Go
 	}
 
 	/**
-	 * Animate an object TO another state (like position, scale, rotation, alpha)
+	 * Animate an object **TO** another state (like position, scale, rotation, alpha)
 	 * 
-	 * @example		lets.Go.to(foobarMc, 1.5);
+	 * ```
+	 * lets.Go.to(foobarMc, 1.5);
+	 * ```
 	 * 
 	 * @param  target   	object to animate
 	 * @param  duration 	in seconds	(default value is .5 seconds)
@@ -66,9 +109,11 @@ class Go
 	}
 
 	/**
-	 * Animate an object FROM another state (like position, scale, rotation, alpha)
-	 * 
-	 * @example		lets.Go.from(foobarMc, 1.5);
+	 * Animate an object **FROM** another state (like position, scale, rotation, alpha)
+	 *
+	 * ```
+	 * lets.Go.from(foobarMc, 1.5);
+	 * ```
 	 * 
 	 * @param  target   	object to animate
 	 * @param  duration 	in seconds	(default value is .5 seconds)
@@ -84,7 +129,9 @@ class Go
 	/**
 	 * Use Go to do a delayed call to a function
 	 * 
-	 * @example		lets.Go.timer(1.5).onComplete(onCompleteHandler);
+	 * ```
+	 * lets.Go.timer(1.5).onComplete(onCompleteHandler);
+	 * ```
 	 * 
 	 * @param  duration 	in seconds	
 	 * @return          Go
@@ -95,13 +142,46 @@ class Go
 		return go;
 	}
 
+	/**
+	 * Stop and remove all tweens in Go
+	 */
+	static inline public function killAll():Void
+	{	
+		if (Go.DEBUG){		
+			trace('function killAll()');
+			trace('_trigger: '+_trigger);
+			trace('_tweens.length: '+_tweens.length);
+		}
+
+		// [mck] stop timer, we are done!
+		_trigger.stop();
+		_trigger.run = null;
+		_trigger = null;
+
+		while(_tweens.length > 0)
+		{	
+			// trace(_tweens[0]._id);
+			_tweens[0].destroy();
+			_tweens.pop();
+		}
+
+		if (Go.DEBUG){	
+			trace('_trigger: '+_trigger);
+			trace('_tweens.length: '+_tweens.length);
+
+			trace('_trigger: '+_trigger);
+			trace('_tweens'+_tweens);
+		}
+
+	}
 
 	// ____________________________________ properties ____________________________________
 
 	/**
 	 * change the duration of the animation (default is .5 seconds) 
 	 *
-	 * @example		lets.Go.to(foobarMc).duration(10);
+	 * ```
+	 * lets.Go.to(foobarMc).duration(10);
 	 * 
 	 * @param  value 	duration in seconds
 	 * @return       Go
@@ -169,6 +249,7 @@ class Go
 	}
 	/**
 	 * yoyo to the original values of an object
+	 * tween will run in the opposite direction so that the tween appears to go back and forth
 	 * 
 	 * @return       Go
 	 */
@@ -198,7 +279,7 @@ class Go
 	inline public function prop(key:String, value:Float):Go 
 	{
 		var objValue = Reflect.getProperty(_target, key);
-		var _range = {key:key, from:(_isFrom) ? value:objValue , to:(!_isFrom) ? value:objValue };
+		var _range = {key:key, from:(_isFrom) ? value : objValue , to:(!_isFrom) ? value : objValue };
 		_props.set (key, _range );
 		return this;
 	}
@@ -212,7 +293,6 @@ class Go
 	inline public function onComplete(func:Dynamic, ?arr:Array<Dynamic>):Go
 	{
 		_options.onComplete = func;
-		// _options.onCompleteParams = arr;
 		_options.onCompleteParams = (arr != null ) ? arr : [];
 		return this;
 	}
@@ -226,14 +306,15 @@ class Go
 	inline public function onUpdate(func:Dynamic, ?arr:Array<Dynamic>):Go
 	{
 		_options.onUpdate = func;
-		// _options.onUpdateParams = arr;
 		_options.onUpdateParams = (arr != null) ? arr : [];
 		return this;
 	}
 	/**
 	 * change the default (lets.easing.Quad.easeOut) easing 
 	 *
-	 * @example		lets.Go.from(foobarMc, 1.5).x(500).easing(lets.easing.Cubic.easeOut);
+	 * ```
+	 * lets.Go.from(foobarMc, 1.5).x(500).easing(lets.easing.Cubic.easeOut);
+	 * ```
 	 * 
 	 * @param  easing
 	 * @return		Go
@@ -247,11 +328,13 @@ class Go
 	// ____________________________________ public ____________________________________
 
 	/**
-	 * stop a Go tween while its animating
+	 * stop a Go tween while it's animating
 	 *
-	 * @example 	var tween : Go = lets.Go.to(foobarMc, 20).x(100);
-	 *           	// oh dumb dumb, I want to stop that long animation because x-reason
-	 *           	tween.stop();
+	 * ```
+	 * var tween : Go = lets.Go.to(foobarMc, 20).x(100);
+	 * // oh dumb dumb, I want to stop that long animation because x-reason
+	 * tween.stop();
+	 * ```
 	 */
 	public function stop():Void
 	{
@@ -263,7 +346,7 @@ class Go
 	private function init():Void
 	{
 		// [mck] make sure we use the frameRate from the original movie
-		var framerate:Int = (openfl.Lib.current.stage.frameRate > 30) ? Std.int (openfl.Lib.current.stage.frameRate) : 30;
+		var framerate:Int = (flash.Lib.current.stage.frameRate > 30) ? Std.int (flash.Lib.current.stage.frameRate) : 30;
 		// var framerate:Int = 30;
 		_trigger = (_trigger == null) ? new Timer(Std.int(1000 / framerate)) : _trigger;
 		_trigger.run = onEnterFrameHandler;
@@ -271,13 +354,13 @@ class Go
 
 	private function onEnterFrameHandler( ):Void
 	{
+		// trace('- ' + Lib.getTimer()); // debug
 		var _total = _tweens.length;
-		if(_initTime == 0) return;
+		if(_initTime == -1) return;
 		if (_total <= 0)
 		{
 			// [mck] stop timer, we are done!
-			_trigger.stop();
-			_trigger.run = null;
+			killTimer();
 		} 
 		else for( i in 0..._total ) 
 		{
@@ -317,7 +400,11 @@ class Go
 		if( Reflect.isFunction(_options.onUpdate) ) {
 			var func = _options.onUpdate;
 			var arr = _options.onUpdateParams;
+			#if flash
+			func.apply( null, arr );
+			#else
 			Reflect.callMethod( func, func, arr );
+			#end
 		}
 		for(n in _props.keys())
 		{
@@ -356,12 +443,34 @@ class Go
 
 		destroy();
 
-		if( Reflect.isFunction(func) ) Reflect.callMethod( func, func, arr );
+		if( Reflect.isFunction(func) ) {
+			#if flash
+			func.apply( null, arr );
+			#else
+			Reflect.callMethod( func, func, arr );
+			#end
+		}
+	}
+
+	/*
+	private function kill (obj:Dynamic):Void
+	{
+
+	}
+	*/
+
+	private function killTimer():Void
+	{
+		if(DEBUG) trace('kill timer //  all done // reset');
+		// [mck] stop timer, we are done!
+		_trigger.stop();
+		_trigger.run = null;
 	}
 
 	private function destroy():Void
 	{
 		if(Lambda.has(_tweens, this)) _tweens.remove(this);
+
 		// [mck] cleaning up
 		if( _options )
 		{
@@ -370,8 +479,8 @@ class Go
 			_target = null;
 			_props = null;
 			_duration = 0;
-			_initTime = 0;
 			_delay = 0;
+			// _initTime = -1; // [mck] if this is zero, the rest of the animations will be ignored (what we don't want)
 		}
 	}
 
