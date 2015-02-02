@@ -5,14 +5,14 @@
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 	
-	<title>Go Example</title>
+	<title>lets.Go :: Haxe/OpenFl</title>
 	
 	<meta id="viewport" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 	<meta name="apple-mobile-web-app-capable" content="yes">
 	
 	
-	<script type="text/javascript" src="./lib/soundjs.min.js"></script>
-	<script type="text/javascript" src="./Go.js"></script>
+	<script type="text/javascript" src="./example/actuate_example/Export/html5/bin/lib/soundjs.min.js"></script>
+	<script type="text/javascript" src="./example/actuate_example/Export/html5/bin/Go.js"></script>
 	
 	<script>
 		window.addEventListener ("touchmove", function (event) { event.preventDefault (); }, false);
@@ -23,23 +23,194 @@
 	</script>
 	
 	<style>
-		html,body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
-		#openfl-content { background: #000000; width: 100%; height: 100%; }
-		
+		/*html,body { margin: 0; padding: 0; height: 100%; overflow: hidden; }*/
+		html,body { margin: 0; padding: 0; height: 100%;}
+		#openfl-content { background: #ffffff; width: 100%; height: 100%; }
 	</style>
-	
+
+	<!-- Latest compiled and minified CSS -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+
+	<!-- Custom styles for this template -->
+	<link href="css/go.css" rel="stylesheet">
+
+	<!-- google fonts -->
+	<link href='http://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>	
+	<link href='http://fonts.googleapis.com/css?family=Bree+Serif' rel='stylesheet' type='text/css'>
+
 </head>
 <body>
 	
+
+	<!-- Wrap all page content here -->
+	<div id="wrap">
+
+		<!-- navbar -->
+		<div class="navbar navbar-fixed-top navbar-inverse" role="navigation">
+				
+			<div class="container" >
+				<a class="navbar-brand go-brand" href="/">lets.Go</a>
+				<ul class="nav navbar-nav navbar-right">
+					<li><a href="#about" class="nav-button">About</a></li>														
+					<li><a href="#usage" class="nav-button">Usage</a></li>														
+					<li><a href="#stress" class="nav-button">Stress</a></li>				
+					<li><a href="#links" class="nav-button">Links</a></li>				
+				</ul>			
+      		</div><!-- .container -->
+			
+		</div><!-- .navbar -->
+
+
+		<div class="container header-container">
+			<div class="row">
+				<div class="col-md-12">
+					<h1 class='ultra-h1'>Lightweight, simple, compact, chainable tween library for Haxe/Openfl.</h1>
+				</div>
+			</div>
+		</div>
+
+		<div class="container  txt-container" id="about">
+			<div class="row">
+				<div class="col-md-12">
+					<h1>About lets.Go</h1>
+					<p>Lets build tweening library for Haxe and OpenFl. It's called <strong>Go</strong>!. Like <a href="https://www.youtube.com/watch?v=WY87o9IZXWg" target="_blank" >Everybody in the place</a>, <strong>lets Go</strong>.</p>
+					<p>It's easy to remember: you want to tween/animate something ... <code>lets.Go.to()</code> </p>
+				</div>
+
+			</div>
+		</div>
+		
+		
+
+		<div class="container  txt-container" id="usage">
+			<div class="row">
+				<div class="col-md-12">
+					<h1>Usage</h1>
+					<p>Animate a sprite in 1.5 second to x postion 100
+<pre>
+Go.to(sprite, 1.5).x(100);
+// or
+Go.to(sprite).duration(1.5).x(100);
+</pre>
+
+
+Animate a sprite in 1.5 second to x and y postion
+<pre>
+Go.to(sprite, 1.5).x(100).y(200);
+</pre>
+
+Animate a sprite in 1.5 second to x and y postion and call function when animation is done
+
+<pre>
+Go.to(sprite, 1.5).x(100).y(200).onComplete(onCompleteHandler, ['hello']);
+</pre>
+
+Rotate an object in degrees
+<pre>
+Go.to(sprite, 1.5).rotate(360);
+</pre>
+Change the alpha of an object (value from 0 to 1)
+<pre>
+Go.to(sprite, 1.5).alpha(.5);
+</pre>
+Change the scale of an object (value 1 is original scale/100% , 0.5 will be 50%, 2 will be 200%)
+<pre>
+Go.to(sprite, 1.5).scale(.5);
+</pre>
+Delay an animation for 2 seconds
+<pre>
+Go.to(sprite, 1.5).scale(.5).delay(2);
+</pre>
+Yoyo an animation (play the animation and reverse it back to the original values)
+<pre>
+Go.to(sprite, 1.5).x(100).yoyo();
+</pre>
+Delay an animation for 3 seconds and then start
+<pre>
+Go.to(sprite, 1.5).x(100).delay(3);
+</pre>
+Change default easing
+<pre>
+import lets.Go;
+import lets.easing.Elastic;
+
+Go.to(sprite, 1.5).x(100).ease(Elastic.easeOut);
+</pre></p>
+				</div>
+			</div>
+		</div>
+		
+		<div class="container  txt-container" id='stress'>
+			<div class="row">
+				<div class="col-md-6">
+					<h1>Stress test</h1>
+					<p>A good way of testing how a tweening libraries performes is a stress-test.</p>
+					<p>But do you really want to move 1000 objects at the same time?</p>
+					<p>Well you can with Go, but Actuate is better at it.</p>
+					<p>The reason for this is probably because it has optimazation specific for flash, and the stress-test is in flash!</p>
+					<p>I know there are more tweening engines out there, so add them <a href="https://github.com/MatthijsKamstra/go/tree/master/example/stress_test/Source/tweenTests" target="_blank">here</a>a> (if you feel the need).</p>
+				</div>
+				<div class="col-md-6">
+					<h1>&nbsp;</h1>
+					<p><iframe src="example/stress_test/Export/flash/bin/index.html" width="500" height="500" frameborder="0" class='gray'></iframe></p>
+				</div>
+
+			</div>
+		</div>
+		
+		<div class="container  txt-container" id='links'>
+			<div class="row">
+				<div class="col-md-6">
+					<h1>Links</h1>
+					<ul>
+						<li>https://github.com/openfl/actuate</li>
+						<li>https://github.com/alijaya/teew/tree/master/teew</li>
+						<li>https://github.com/sreenaths/twee-haxe</li>
+						<li>https://code.google.com/p/eaze-tween/</li>
+						<li>https://code.google.com/p/fatlib/source/browse/trunk/src/org/fatlib/utils/Tween.as</li>
+						<li>http://greensock.com/</li>
+
+					</ul>
+				</div>
+
+			</div>
+		</div>
+
+
+	</div><!-- #wrap -->
+
+
 	<div id="openfl-content"></div>
 	
 	<script type="text/javascript">
-		lime.embed ("openfl-content", 0, 0, "FFFFFF");
+		lime.embed ("openfl-content", 0, 0, "ffffff");
 	</script>
 
+
+
+
+	<!-- Bootstrap core JavaScript
+	================================================== -->
+	<!-- Placed at the end of the document so the pages load faster -->
+	<script src="https://code.jquery.com/jquery-2.0.3.min.js"></script>
+	<!-- Latest compiled and minified JavaScript -->
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+	<script src="js/go.js"></script>
+
+	<script>
+		// (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+		// (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+		// m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+		// })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+		// ga('create', 'UA-47086480-1', 'fonkmobile.nl');
+		// ga('send', 'pageview');
+	</script>
+
+<!-- 
 	<div id='youtube-player'>
-		<iframe width="640" height="480" src="http://www.youtube.com/embed/WY87o9IZXWg?rel=0&amp;showinfo=0&amp;autoplay=1" frameborder="0" allowfullscreen></iframe>
+		<iframe width="640" height="480" src="_http://www.youtube.com/embed/WY87o9IZXWg?rel=0&amp;showinfo=0&amp;autoplay=1" frameborder="0" allowfullscreen></iframe>
 	</div>
-	
+ -->	
 </body>
 </html>

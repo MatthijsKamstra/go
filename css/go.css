@@ -1,0 +1,44 @@
+/* Typografy
+-------------------------------------------------- */
+body {
+	font-family: 'Roboto', sans-serif;
+	line-height: 30px;
+	font-size: 20px;
+	font-weight: 300;
+}
+body { padding-top: 50px; }
+
+h1, h2, h3, h4, h5, h6 {
+	font-family: 'Bree Serif', serif;
+	/*text-transform: uppercase;*/
+	color: #272822;
+}
+
+
+#wrap {
+	position: absolute;
+	margin: 0 auto 0 auto;
+	z-index: 999;
+	padding-bottom: 100px;
+}
+
+#openfl-content{
+	z-index: 100;
+
+}
+
+.ultra-h1{
+	text-transform: uppercase;
+	color: #272822;
+	font-size: 70px;
+}
+
+.header-container{
+	padding-bottom: 200px;
+}
+
+.gray {
+	background-color: gray;
+	border: 1px solid #ecf0f1;
+}
+
