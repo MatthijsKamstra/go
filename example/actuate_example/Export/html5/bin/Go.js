@@ -13,18 +13,25 @@ $hxClasses["ApplicationMain"] = ApplicationMain;
 ApplicationMain.__name__ = ["ApplicationMain"];
 ApplicationMain.config = null;
 ApplicationMain.preloader = null;
-ApplicationMain.app = null;
 ApplicationMain.create = function() {
-	ApplicationMain.app = new openfl.display.Application();
-	ApplicationMain.app.create(ApplicationMain.config);
+	var app = new openfl.display.Application();
+	app.create(ApplicationMain.config);
 	var display = new NMEPreloader();
 	ApplicationMain.preloader = new openfl.display.Preloader(display);
 	ApplicationMain.preloader.onComplete = ApplicationMain.init;
 	ApplicationMain.preloader.create(ApplicationMain.config);
 	var urls = [];
 	var types = [];
+	if(ApplicationMain.config.assetsPrefix != null) {
+		var _g1 = 0;
+		var _g = urls.length;
+		while(_g1 < _g) {
+			var i = _g1++;
+			if(types[i] != "FONT") urls[i] = ApplicationMain.config.assetsPrefix + urls[i];
+		}
+	}
 	ApplicationMain.preloader.load(urls,types);
-	var result = ApplicationMain.app.exec();
+	var result = app.exec();
 };
 ApplicationMain.init = function() {
 	var loaded = 0;
@@ -40,11 +47,10 @@ ApplicationMain.main = function() {
 	ApplicationMain.config = { antialiasing : 0, background : 16777215, borderless : false, depthBuffer : false, fps : 0, fullscreen : false, height : 0, orientation : "", resizable : true, stencilBuffer : false, title : "Go Example", vsync : false, width : 0};
 };
 ApplicationMain.start = function() {
-	openfl.Lib.current.stage.align = openfl.display.StageAlign.TOP_LEFT;
-	openfl.Lib.current.stage.scaleMode = openfl.display.StageScaleMode.NO_SCALE;
 	var hasMain = false;
+	var entryPoint = Type.resolveClass("Main");
 	var _g = 0;
-	var _g1 = Type.getClassFields(Main);
+	var _g1 = Type.getClassFields(entryPoint);
 	while(_g < _g1.length) {
 		var methodName = _g1[_g];
 		++_g;
@@ -53,7 +59,7 @@ ApplicationMain.start = function() {
 			break;
 		}
 	}
-	if(hasMain) Reflect.callMethod(Main,Reflect.field(Main,"main"),[]); else {
+	if(hasMain) Reflect.callMethod(entryPoint,Reflect.field(entryPoint,"main"),[]); else {
 		var instance = Type.createInstance(DocumentClass,[]);
 	}
 	openfl.Lib.current.stage.dispatchEvent(new openfl.events.Event(openfl.events.Event.RESIZE,false,false));
@@ -158,13 +164,13 @@ openfl.display.IBitmapDrawable.prototype = {
 };
 openfl.display.DisplayObject = function() {
 	openfl.events.EventDispatcher.call(this);
-	this.set_alpha(1);
-	this.set_rotation(0);
-	this.set_scaleX(1);
-	this.set_scaleY(1);
-	this.set_visible(true);
-	this.set_x(0);
-	this.set_y(0);
+	this.__alpha = 1;
+	this.__rotation = 0;
+	this.__scaleX = 1;
+	this.__scaleY = 1;
+	this.__visible = true;
+	this.__x = 0;
+	this.__y = 0;
 	this.__worldAlpha = 1;
 	this.__worldTransform = new openfl.geom.Matrix();
 	this.__rotationCache = 0;
@@ -238,11 +244,13 @@ openfl.display.DisplayObject.prototype = $extend(openfl.events.EventDispatcher.p
 		this.__getBounds(rect,new openfl.geom.Matrix());
 	}
 	,__getTransform: function() {
-		if(openfl.display.DisplayObject.__worldTransformDirty > 0) {
+		if(this.__transformDirty || openfl.display.DisplayObject.__worldTransformDirty > 0) {
 			var list = [];
 			var current = this;
 			var transformDirty = this.__transformDirty;
-			while(current.parent != null) {
+			if(this.parent == null) {
+				if(transformDirty) this.__update(true,false);
+			} else while(current.parent != null) {
 				list.push(current);
 				current = current.parent;
 				if(current.__transformDirty) transformDirty = true;
@@ -302,6 +310,7 @@ openfl.display.DisplayObject.prototype = $extend(openfl.events.EventDispatcher.p
 			var b01 = parentTransform.b;
 			var b10 = parentTransform.c;
 			var b11 = parentTransform.d;
+			if(this.__worldTransform == null) this.__worldTransform = new openfl.geom.Matrix();
 			this.__worldTransform.a = a00 * b00 + a01 * b10;
 			this.__worldTransform.b = a00 * b01 + a01 * b11;
 			this.__worldTransform.c = a10 * b00 + a11 * b10;
@@ -467,7 +476,7 @@ openfl.display.DisplayObject.prototype = $extend(openfl.events.EventDispatcher.p
 			openfl.display.DisplayObject.__worldTransformDirty++;
 		}
 		this.__transform.set_matrix(value.get_matrix().clone());
-		this.__transform.colorTransform = new openfl.geom.ColorTransform(value.colorTransform.redMultiplier,value.colorTransform.greenMultiplier,value.colorTransform.blueMultiplier,value.colorTransform.alphaMultiplier,value.colorTransform.redOffset,value.colorTransform.greenOffset,value.colorTransform.blueOffset,value.colorTransform.alphaOffset);
+		this.__transform.set_colorTransform(new openfl.geom.ColorTransform(value.get_colorTransform().redMultiplier,value.get_colorTransform().greenMultiplier,value.get_colorTransform().blueMultiplier,value.get_colorTransform().alphaMultiplier,value.get_colorTransform().redOffset,value.get_colorTransform().greenOffset,value.get_colorTransform().blueOffset,value.get_colorTransform().alphaOffset));
 		return this.__transform;
 	}
 	,get_visible: function() {
@@ -745,8 +754,7 @@ openfl.display.DisplayObjectContainer.prototype = $extend(openfl.display.Interac
 		if(!this.__renderable || this.__worldAlpha <= 0) return;
 		if(this.get_scrollRect() != null) {
 		}
-		if(this.__mask != null) {
-		}
+		if(this.__mask != null) renderSession.maskManager.pushMask(this.__mask);
 		var _g = 0;
 		var _g1 = this.__children;
 		while(_g < _g1.length) {
@@ -755,12 +763,12 @@ openfl.display.DisplayObjectContainer.prototype = $extend(openfl.display.Interac
 			child.__renderCanvas(renderSession);
 		}
 		this.__removedChildren = [];
-		if(this.__mask != null) {
-		}
+		if(this.__mask != null) renderSession.maskManager.popMask();
 		if(this.get_scrollRect() != null) {
 		}
 	}
 	,__renderDOM: function(renderSession) {
+		if(this.__mask != null) renderSession.maskManager.pushMask(this.__mask);
 		var _g = 0;
 		var _g1 = this.__children;
 		while(_g < _g1.length) {
@@ -776,6 +784,7 @@ openfl.display.DisplayObjectContainer.prototype = $extend(openfl.display.Interac
 			if(orphan.stage == null) orphan.__renderDOM(renderSession);
 		}
 		this.__removedChildren = [];
+		if(this.__mask != null) renderSession.maskManager.popMask();
 	}
 	,__renderGL: function(renderSession) {
 		if(!this.__renderable || this.__worldAlpha <= 0) return;
@@ -843,6 +852,7 @@ openfl.display.Sprite = function() {
 	openfl.display.DisplayObjectContainer.call(this);
 	this.buttonMode = false;
 	this.useHandCursor = true;
+	this.loaderInfo = openfl.display.LoaderInfo.create(null);
 };
 $hxClasses["openfl.display.Sprite"] = openfl.display.Sprite;
 openfl.display.Sprite.__name__ = ["openfl","display","Sprite"];
@@ -1012,6 +1022,15 @@ var DefaultAssetLibrary = function() {
 	this.className = new haxe.ds.StringMap();
 	lime.AssetLibrary.call(this);
 	var id;
+	var assetsPrefix = ApplicationMain.config.assetsPrefix;
+	if(assetsPrefix != null) {
+		var $it0 = this.path.keys();
+		while( $it0.hasNext() ) {
+			var k = $it0.next();
+			var value = assetsPrefix + this.path.get(k);
+			this.path.set(k,value);
+		}
+	}
 };
 $hxClasses["DefaultAssetLibrary"] = DefaultAssetLibrary;
 DefaultAssetLibrary.__name__ = ["DefaultAssetLibrary"];
@@ -1109,6 +1128,18 @@ DefaultAssetLibrary.prototype = $extend(lime.AssetLibrary.prototype,{
 	}
 	,__class__: DefaultAssetLibrary
 });
+var EReg = function(r,opt) {
+	opt = opt.split("u").join("");
+	this.r = new RegExp(r,opt);
+};
+$hxClasses["EReg"] = EReg;
+EReg.__name__ = ["EReg"];
+EReg.prototype = {
+	replace: function(s,by) {
+		return s.replace(this.r,by);
+	}
+	,__class__: EReg
+};
 var HxOverrides = function() { };
 $hxClasses["HxOverrides"] = HxOverrides;
 HxOverrides.__name__ = ["HxOverrides"];
@@ -1176,13 +1207,13 @@ var NMEPreloader = function() {
 	var color = 0;
 	if(perceivedLuminosity < 70) color = 16777215;
 	var x = 30;
-	var height = 9;
+	var height = 7;
 	var y = this.getHeight() / 2 - height / 2;
 	var width = this.getWidth() - x * 2;
-	var padding = 3;
+	var padding = 2;
 	this.outline = new openfl.display.Sprite();
-	this.outline.get_graphics().lineStyle(1,color,0.15,true);
-	this.outline.get_graphics().drawRoundRect(0,0,width,height,padding * 2,padding * 2);
+	this.outline.get_graphics().beginFill(color,0.07);
+	this.outline.get_graphics().drawRect(0,0,width,height);
 	this.outline.set_x(x);
 	this.outline.set_y(y);
 	this.addChild(this.outline);
@@ -2115,6 +2146,7 @@ lets.Go.to = function(target,duration) {
 lets.Go.from = function(target,duration) {
 	if(duration == null) duration = .5;
 	var go = new lets.Go(target,duration);
+	target.set_visible(false);
 	go._isFrom = true;
 	return go;
 };
@@ -2124,9 +2156,9 @@ lets.Go.timer = function(duration) {
 };
 lets.Go.killAll = function() {
 	if(lets.Go.DEBUG) {
-		haxe.Log.trace("function killAll()",{ fileName : "Go.hx", lineNumber : 151, className : "lets.Go", methodName : "killAll"});
-		haxe.Log.trace("_trigger: " + Std.string(lets.Go._trigger),{ fileName : "Go.hx", lineNumber : 152, className : "lets.Go", methodName : "killAll"});
-		haxe.Log.trace("_tweens.length: " + lets.Go._tweens.length,{ fileName : "Go.hx", lineNumber : 153, className : "lets.Go", methodName : "killAll"});
+		haxe.Log.trace("function killAll()",{ fileName : "Go.hx", lineNumber : 152, className : "lets.Go", methodName : "killAll"});
+		haxe.Log.trace("_trigger: " + Std.string(lets.Go._trigger),{ fileName : "Go.hx", lineNumber : 153, className : "lets.Go", methodName : "killAll"});
+		haxe.Log.trace("_tweens.length: " + lets.Go._tweens.length,{ fileName : "Go.hx", lineNumber : 154, className : "lets.Go", methodName : "killAll"});
 	}
 	lets.Go._trigger.stop();
 	lets.Go._trigger.run = null;
@@ -2136,10 +2168,10 @@ lets.Go.killAll = function() {
 		lets.Go._tweens.pop();
 	}
 	if(lets.Go.DEBUG) {
-		haxe.Log.trace("_trigger: " + Std.string(lets.Go._trigger),{ fileName : "Go.hx", lineNumber : 169, className : "lets.Go", methodName : "killAll"});
-		haxe.Log.trace("_tweens.length: " + lets.Go._tweens.length,{ fileName : "Go.hx", lineNumber : 170, className : "lets.Go", methodName : "killAll"});
-		haxe.Log.trace("_trigger: " + Std.string(lets.Go._trigger),{ fileName : "Go.hx", lineNumber : 172, className : "lets.Go", methodName : "killAll"});
-		haxe.Log.trace("_tweens" + Std.string(lets.Go._tweens),{ fileName : "Go.hx", lineNumber : 173, className : "lets.Go", methodName : "killAll"});
+		haxe.Log.trace("_trigger: " + Std.string(lets.Go._trigger),{ fileName : "Go.hx", lineNumber : 170, className : "lets.Go", methodName : "killAll"});
+		haxe.Log.trace("_tweens.length: " + lets.Go._tweens.length,{ fileName : "Go.hx", lineNumber : 171, className : "lets.Go", methodName : "killAll"});
+		haxe.Log.trace("_trigger: " + Std.string(lets.Go._trigger),{ fileName : "Go.hx", lineNumber : 173, className : "lets.Go", methodName : "killAll"});
+		haxe.Log.trace("_tweens" + Std.string(lets.Go._tweens),{ fileName : "Go.hx", lineNumber : 174, className : "lets.Go", methodName : "killAll"});
 	}
 };
 lets.Go.prototype = {
@@ -2217,6 +2249,11 @@ lets.Go.prototype = {
 		}
 	}
 	,update: function() {
+		if(this._isFrom) {
+			this.updateProperties(1);
+			this._target.visible = true;
+			this._isFrom = false;
+		}
 		if(this._delay > 0) {
 			var waitTime = openfl.Lib.getTimer() - this._initTime;
 			if(waitTime >= this._delay) {
@@ -2262,7 +2299,7 @@ lets.Go.prototype = {
 		if(Reflect.isFunction(func)) func.apply(func,arr);
 	}
 	,killTimer: function() {
-		if(lets.Go.DEBUG) haxe.Log.trace("kill timer //  all done // reset",{ fileName : "Go.hx", lineNumber : 463, className : "lets.Go", methodName : "killTimer"});
+		if(lets.Go.DEBUG) haxe.Log.trace("kill timer //  all done // reset",{ fileName : "Go.hx", lineNumber : 472, className : "lets.Go", methodName : "killTimer"});
 		lets.Go._trigger.stop();
 		lets.Go._trigger.run = null;
 	}
@@ -2666,27 +2703,10 @@ lime._backend = {};
 lime._backend.html5 = {};
 lime._backend.html5.HTML5Application = function(parent) {
 	this.parent = parent;
-	lime.app.Application.__instance = parent;
 	lime.audio.AudioManager.init();
 };
 $hxClasses["lime._backend.html5.HTML5Application"] = lime._backend.html5.HTML5Application;
 lime._backend.html5.HTML5Application.__name__ = ["lime","_backend","html5","HTML5Application"];
-lime._backend.html5.HTML5Application.handleUpdateEvent = function(__) {
-	lime.app.Application.__instance.update(16);
-	var listeners = lime.app.Application.onUpdate.listeners;
-	var repeat = lime.app.Application.onUpdate.repeat;
-	var length = listeners.length;
-	var i = 0;
-	while(i < length) {
-		listeners[i](16);
-		if(!repeat[i]) {
-			lime.app.Application.onUpdate.remove(listeners[i]);
-			length--;
-		} else i++;
-	}
-	lime.graphics.Renderer.render();
-	window.requestAnimationFrame(lime._backend.html5.HTML5Application.handleUpdateEvent);
-};
 lime._backend.html5.HTML5Application.prototype = {
 	convertKeyCode: function(keyCode) {
 		if(keyCode >= 65 && keyCode <= 90) return keyCode + 32;
@@ -2750,34 +2770,20 @@ lime._backend.html5.HTML5Application.prototype = {
 	}
 	,create: function(config) {
 		this.parent.config = config;
-		window.addEventListener("keydown",$bind(this,this.handleKeyEvent),false);
-		window.addEventListener("keyup",$bind(this,this.handleKeyEvent),false);
-		lime.ui.KeyEventManager.onKeyDown.add(($_=this.parent,$bind($_,$_.onKeyDown)));
-		lime.ui.KeyEventManager.onKeyUp.add(($_=this.parent,$bind($_,$_.onKeyUp)));
-		lime.ui.MouseEventManager.onMouseDown.add(($_=this.parent,$bind($_,$_.onMouseDown)));
-		lime.ui.MouseEventManager.onMouseMove.add(($_=this.parent,$bind($_,$_.onMouseMove)));
-		lime.ui.MouseEventManager.onMouseUp.add(($_=this.parent,$bind($_,$_.onMouseUp)));
-		lime.ui.MouseEventManager.onMouseWheel.add(($_=this.parent,$bind($_,$_.onMouseWheel)));
-		lime.ui.TouchEventManager.onTouchStart.add(($_=this.parent,$bind($_,$_.onTouchStart)));
-		lime.ui.TouchEventManager.onTouchMove.add(($_=this.parent,$bind($_,$_.onTouchMove)));
-		lime.ui.TouchEventManager.onTouchEnd.add(($_=this.parent,$bind($_,$_.onTouchEnd)));
-		lime.graphics.Renderer.onRenderContextLost.add(($_=this.parent,$bind($_,$_.onRenderContextLost)));
-		lime.graphics.Renderer.onRenderContextRestored.add(($_=this.parent,$bind($_,$_.onRenderContextRestored)));
-		lime.ui.Window.onWindowActivate.add(($_=this.parent,$bind($_,$_.onWindowActivate)));
-		lime.ui.Window.onWindowClose.add(($_=this.parent,$bind($_,$_.onWindowClose)));
-		lime.ui.Window.onWindowDeactivate.add(($_=this.parent,$bind($_,$_.onWindowDeactivate)));
-		lime.ui.Window.onWindowFocusIn.add(($_=this.parent,$bind($_,$_.onWindowFocusIn)));
-		lime.ui.Window.onWindowFocusOut.add(($_=this.parent,$bind($_,$_.onWindowFocusOut)));
-		lime.ui.Window.onWindowMove.add(($_=this.parent,$bind($_,$_.onWindowMove)));
-		lime.ui.Window.onWindowResize.add(($_=this.parent,$bind($_,$_.onWindowResize)));
-		var $window = new lime.ui.Window(config);
-		var renderer = new lime.graphics.Renderer($window);
-		$window.width = config.width;
-		$window.height = config.height;
-		$window.backend.element = config.element;
-		this.parent.addWindow($window);
+		if(config != null) {
+			var $window = new lime.ui.Window(config);
+			var renderer = new lime.graphics.Renderer($window);
+			this.parent.addWindow($window);
+			this.parent.addRenderer(renderer);
+		}
 	}
 	,exec: function() {
+		window.addEventListener("keydown",$bind(this,this.handleKeyEvent),false);
+		window.addEventListener("keyup",$bind(this,this.handleKeyEvent),false);
+		window.addEventListener("focus",$bind(this,this.handleWindowEvent),false);
+		window.addEventListener("blur",$bind(this,this.handleWindowEvent),false);
+		window.addEventListener("resize",$bind(this,this.handleWindowEvent),false);
+		window.addEventListener("beforeunload",$bind(this,this.handleWindowEvent),false);
 		
 			var lastTime = 0;
 			var vendors = ['ms', 'moz', 'webkit', 'o'];
@@ -2804,41 +2810,166 @@ lime._backend.html5.HTML5Application.prototype = {
 			
 			window.requestAnimFrame = window.requestAnimationFrame;
 		;
-		lime._backend.html5.HTML5Application.handleUpdateEvent();
+		this.cacheTime = new Date().getTime();
+		this.handleUpdateEvent();
 		return 0;
 	}
 	,handleKeyEvent: function(event) {
-		var _g = event.keyCode;
-		switch(_g) {
-		case 32:case 37:case 38:case 39:case 40:
-			event.preventDefault();
-			break;
-		}
-		var keyCode = this.convertKeyCode(event.keyCode != null?event.keyCode:event.which);
-		var modifier = 0;
-		if(event.type == "keydown") {
-			var listeners = lime.ui.KeyEventManager.onKeyDown.listeners;
-			var repeat = lime.ui.KeyEventManager.onKeyDown.repeat;
-			var length = listeners.length;
-			var i = 0;
-			while(i < length) {
-				listeners[i](keyCode,modifier);
-				if(!repeat[i]) {
-					lime.ui.KeyEventManager.onKeyDown.remove(listeners[i]);
-					length--;
-				} else i++;
+		if(this.parent.windows[0] != null) {
+			var _g = event.keyCode;
+			switch(_g) {
+			case 32:case 37:case 38:case 39:case 40:
+				event.preventDefault();
+				break;
 			}
-		} else {
-			var listeners1 = lime.ui.KeyEventManager.onKeyUp.listeners;
-			var repeat1 = lime.ui.KeyEventManager.onKeyUp.repeat;
+			var keyCode = this.convertKeyCode(event.keyCode != null?event.keyCode:event.which);
+			var modifier;
+			modifier = (event.shiftKey?3:0) | (event.ctrlKey?192:0) | (event.altKey?768:0) | (event.metaKey?3072:0);
+			if(event.type == "keydown") {
+				var listeners = this.parent.windows[0].onKeyDown.listeners;
+				var repeat = this.parent.windows[0].onKeyDown.repeat;
+				var length = listeners.length;
+				var i = 0;
+				while(i < length) {
+					listeners[i](keyCode,modifier);
+					if(!repeat[i]) {
+						this.parent.windows[0].onKeyDown.remove(listeners[i]);
+						length--;
+					} else i++;
+				}
+			} else {
+				var listeners1 = this.parent.windows[0].onKeyUp.listeners;
+				var repeat1 = this.parent.windows[0].onKeyUp.repeat;
+				var length1 = listeners1.length;
+				var i1 = 0;
+				while(i1 < length1) {
+					listeners1[i1](keyCode,modifier);
+					if(!repeat1[i1]) {
+						this.parent.windows[0].onKeyUp.remove(listeners1[i1]);
+						length1--;
+					} else i1++;
+				}
+			}
+		}
+	}
+	,handleUpdateEvent: function(__) {
+		var currentTime = new Date().getTime();
+		var deltaTime = currentTime - this.cacheTime;
+		this.cacheTime = currentTime;
+		var listeners = this.parent.onUpdate.listeners;
+		var repeat = this.parent.onUpdate.repeat;
+		var length = listeners.length;
+		var i = 0;
+		while(i < length) {
+			listeners[i](deltaTime | 0);
+			if(!repeat[i]) {
+				this.parent.onUpdate.remove(listeners[i]);
+				length--;
+			} else i++;
+		}
+		if(this.parent.renderers[0] != null) {
+			if(!this.initialized) {
+				this.initialized = true;
+				this.parent.init(this.parent.renderers[0].context);
+			}
+			var listeners1 = this.parent.renderers[0].onRender.listeners;
+			var repeat1 = this.parent.renderers[0].onRender.repeat;
 			var length1 = listeners1.length;
 			var i1 = 0;
 			while(i1 < length1) {
-				listeners1[i1](keyCode,modifier);
+				listeners1[i1](this.parent.renderers[0].context);
 				if(!repeat1[i1]) {
-					lime.ui.KeyEventManager.onKeyUp.remove(listeners1[i1]);
+					this.parent.renderers[0].onRender.remove(listeners1[i1]);
 					length1--;
 				} else i1++;
+			}
+			this.parent.renderers[0].flip();
+		}
+		window.requestAnimationFrame($bind(this,this.handleUpdateEvent));
+	}
+	,handleWindowEvent: function(event) {
+		if(this.parent.windows[0] != null) {
+			var _g = event.type;
+			switch(_g) {
+			case "focus":
+				var listeners = this.parent.windows[0].onWindowFocusIn.listeners;
+				var repeat = this.parent.windows[0].onWindowFocusIn.repeat;
+				var length = listeners.length;
+				var i = 0;
+				while(i < length) {
+					listeners[i]();
+					if(!repeat[i]) {
+						this.parent.windows[0].onWindowFocusIn.remove(listeners[i]);
+						length--;
+					} else i++;
+				}
+				var listeners1 = this.parent.windows[0].onWindowActivate.listeners;
+				var repeat1 = this.parent.windows[0].onWindowActivate.repeat;
+				var length1 = listeners1.length;
+				var i1 = 0;
+				while(i1 < length1) {
+					listeners1[i1]();
+					if(!repeat1[i1]) {
+						this.parent.windows[0].onWindowActivate.remove(listeners1[i1]);
+						length1--;
+					} else i1++;
+				}
+				break;
+			case "blur":
+				var listeners2 = this.parent.windows[0].onWindowFocusOut.listeners;
+				var repeat2 = this.parent.windows[0].onWindowFocusOut.repeat;
+				var length2 = listeners2.length;
+				var i2 = 0;
+				while(i2 < length2) {
+					listeners2[i2]();
+					if(!repeat2[i2]) {
+						this.parent.windows[0].onWindowFocusOut.remove(listeners2[i2]);
+						length2--;
+					} else i2++;
+				}
+				var listeners3 = this.parent.windows[0].onWindowDeactivate.listeners;
+				var repeat3 = this.parent.windows[0].onWindowDeactivate.repeat;
+				var length3 = listeners3.length;
+				var i3 = 0;
+				while(i3 < length3) {
+					listeners3[i3]();
+					if(!repeat3[i3]) {
+						this.parent.windows[0].onWindowDeactivate.remove(listeners3[i3]);
+						length3--;
+					} else i3++;
+				}
+				break;
+			case "resize":
+				var cacheWidth = this.parent.windows[0].width;
+				var cacheHeight = this.parent.windows[0].height;
+				this.parent.windows[0].backend.handleResize();
+				if(this.parent.windows[0].width != cacheWidth || this.parent.windows[0].height != cacheHeight) {
+					var listeners4 = this.parent.windows[0].onWindowResize.listeners;
+					var repeat4 = this.parent.windows[0].onWindowResize.repeat;
+					var length4 = listeners4.length;
+					var i4 = 0;
+					while(i4 < length4) {
+						listeners4[i4](this.parent.windows[0].width,this.parent.windows[0].height);
+						if(!repeat4[i4]) {
+							this.parent.windows[0].onWindowResize.remove(listeners4[i4]);
+							length4--;
+						} else i4++;
+					}
+				}
+				break;
+			case "beforeunload":
+				var listeners5 = this.parent.windows[0].onWindowClose.listeners;
+				var repeat5 = this.parent.windows[0].onWindowClose.repeat;
+				var length5 = listeners5.length;
+				var i5 = 0;
+				while(i5 < length5) {
+					listeners5[i5]();
+					if(!repeat5[i5]) {
+						this.parent.windows[0].onWindowClose.remove(listeners5[i5]);
+						length5--;
+					} else i5++;
+				}
+				break;
 			}
 		}
 	}
@@ -2853,7 +2984,7 @@ lime._backend.html5.HTML5Mouse.hide = function() {
 	if(!lime._backend.html5.HTML5Mouse.__hidden) {
 		lime._backend.html5.HTML5Mouse.__hidden = true;
 		var _g = 0;
-		var _g1 = lime.app.Application.__instance.windows;
+		var _g1 = lime.app.Application.current.windows;
 		while(_g < _g1.length) {
 			var $window = _g1[_g];
 			++_g;
@@ -2877,7 +3008,7 @@ lime._backend.html5.HTML5Mouse.set_cursor = function(value) {
 	if(lime._backend.html5.HTML5Mouse.__cursor != value) {
 		if(!lime._backend.html5.HTML5Mouse.__hidden) {
 			var _g = 0;
-			var _g1 = lime.app.Application.__instance.windows;
+			var _g1 = lime.app.Application.current.windows;
 			while(_g < _g1.length) {
 				var $window = _g1[_g];
 				++_g;
@@ -2929,15 +3060,6 @@ lime._backend.html5.HTML5Renderer = function(parent) {
 };
 $hxClasses["lime._backend.html5.HTML5Renderer"] = lime._backend.html5.HTML5Renderer;
 lime._backend.html5.HTML5Renderer.__name__ = ["lime","_backend","html5","HTML5Renderer"];
-lime._backend.html5.HTML5Renderer.render = function() {
-	var _g = 0;
-	var _g1 = lime.app.Application.__instance.windows;
-	while(_g < _g1.length) {
-		var $window = _g1[_g];
-		++_g;
-		if($window.currentRenderer != null) $window.currentRenderer.backend.renderEvent();
-	}
-};
 lime._backend.html5.HTML5Renderer.prototype = {
 	create: function() {
 		this.createContext();
@@ -2969,28 +3091,28 @@ lime._backend.html5.HTML5Renderer.prototype = {
 		case "webglcontextlost":
 			event.preventDefault();
 			this.parent.context = null;
-			var listeners = lime.graphics.Renderer.onRenderContextLost.listeners;
-			var repeat = lime.graphics.Renderer.onRenderContextLost.repeat;
+			var listeners = this.parent.onRenderContextLost.listeners;
+			var repeat = this.parent.onRenderContextLost.repeat;
 			var length = listeners.length;
 			var i = 0;
 			while(i < length) {
 				listeners[i]();
 				if(!repeat[i]) {
-					lime.graphics.Renderer.onRenderContextLost.remove(listeners[i]);
+					this.parent.onRenderContextLost.remove(listeners[i]);
 					length--;
 				} else i++;
 			}
 			break;
 		case "webglcontextrestored":
 			this.createContext();
-			var listeners1 = lime.graphics.Renderer.onRenderContextRestored.listeners;
-			var repeat1 = lime.graphics.Renderer.onRenderContextRestored.repeat;
+			var listeners1 = this.parent.onRenderContextRestored.listeners;
+			var repeat1 = this.parent.onRenderContextRestored.repeat;
 			var length1 = listeners1.length;
 			var i1 = 0;
 			while(i1 < length1) {
 				listeners1[i1](this.parent.context);
 				if(!repeat1[i1]) {
-					lime.graphics.Renderer.onRenderContextRestored.remove(listeners1[i1]);
+					this.parent.onRenderContextRestored.remove(listeners1[i1]);
 					length1--;
 				} else i1++;
 			}
@@ -2998,34 +3120,20 @@ lime._backend.html5.HTML5Renderer.prototype = {
 		default:
 		}
 	}
-	,renderEvent: function() {
-		if(!lime.app.Application.__initialized) {
-			lime.app.Application.__initialized = true;
-			lime.app.Application.__instance.init(this.parent.context);
-		}
-		lime.app.Application.__instance.render(this.parent.context);
-		var listeners = lime.graphics.Renderer.onRender.listeners;
-		var repeat = lime.graphics.Renderer.onRender.repeat;
-		var length = listeners.length;
-		var i = 0;
-		while(i < length) {
-			listeners[i](this.parent.context);
-			if(!repeat[i]) {
-				lime.graphics.Renderer.onRender.remove(listeners[i]);
-				length--;
-			} else i++;
-		}
-		this.flip();
+	,render: function() {
 	}
 	,__class__: lime._backend.html5.HTML5Renderer
 };
 lime._backend.html5.HTML5Window = function(parent) {
 	this.parent = parent;
+	if(parent.config != null && Object.prototype.hasOwnProperty.call(parent.config,"element")) this.element = parent.config.element;
 };
 $hxClasses["lime._backend.html5.HTML5Window"] = lime._backend.html5.HTML5Window;
 lime._backend.html5.HTML5Window.__name__ = ["lime","_backend","html5","HTML5Window"];
 lime._backend.html5.HTML5Window.prototype = {
-	create: function(application) {
+	close: function() {
+	}
+	,create: function(application) {
 		this.setWidth = this.parent.width;
 		this.setHeight = this.parent.height;
 		if(js.Boot.__instanceof(this.element,HTMLCanvasElement)) this.canvas = this.element; else this.canvas = window.document.createElement("canvas");
@@ -3084,94 +3192,6 @@ lime._backend.html5.HTML5Window.prototype = {
 			this.element.addEventListener("touchmove",$bind(this,this.handleTouchEvent),true);
 			this.element.addEventListener("touchend",$bind(this,this.handleTouchEvent),true);
 		}
-		window.addEventListener("focus",$bind(this,this.handleEvent),false);
-		window.addEventListener("blur",$bind(this,this.handleEvent),false);
-		window.addEventListener("resize",$bind(this,this.handleEvent),false);
-		window.addEventListener("beforeunload",$bind(this,this.handleEvent),false);
-	}
-	,handleEvent: function(event) {
-		var _g = event.type;
-		switch(_g) {
-		case "focus":
-			var listeners = lime.ui.Window.onWindowFocusIn.listeners;
-			var repeat = lime.ui.Window.onWindowFocusIn.repeat;
-			var length = listeners.length;
-			var i = 0;
-			while(i < length) {
-				listeners[i]();
-				if(!repeat[i]) {
-					lime.ui.Window.onWindowFocusIn.remove(listeners[i]);
-					length--;
-				} else i++;
-			}
-			var listeners1 = lime.ui.Window.onWindowActivate.listeners;
-			var repeat1 = lime.ui.Window.onWindowActivate.repeat;
-			var length1 = listeners1.length;
-			var i1 = 0;
-			while(i1 < length1) {
-				listeners1[i1]();
-				if(!repeat1[i1]) {
-					lime.ui.Window.onWindowActivate.remove(listeners1[i1]);
-					length1--;
-				} else i1++;
-			}
-			break;
-		case "blur":
-			var listeners2 = lime.ui.Window.onWindowFocusOut.listeners;
-			var repeat2 = lime.ui.Window.onWindowFocusOut.repeat;
-			var length2 = listeners2.length;
-			var i2 = 0;
-			while(i2 < length2) {
-				listeners2[i2]();
-				if(!repeat2[i2]) {
-					lime.ui.Window.onWindowFocusOut.remove(listeners2[i2]);
-					length2--;
-				} else i2++;
-			}
-			var listeners3 = lime.ui.Window.onWindowDeactivate.listeners;
-			var repeat3 = lime.ui.Window.onWindowDeactivate.repeat;
-			var length3 = listeners3.length;
-			var i3 = 0;
-			while(i3 < length3) {
-				listeners3[i3]();
-				if(!repeat3[i3]) {
-					lime.ui.Window.onWindowDeactivate.remove(listeners3[i3]);
-					length3--;
-				} else i3++;
-			}
-			break;
-		case "resize":
-			var cacheWidth = this.parent.width;
-			var cacheHeight = this.parent.height;
-			this.handleResize();
-			if(this.parent.width != cacheWidth || this.parent.height != cacheHeight) {
-				var listeners4 = lime.ui.Window.onWindowResize.listeners;
-				var repeat4 = lime.ui.Window.onWindowResize.repeat;
-				var length4 = listeners4.length;
-				var i4 = 0;
-				while(i4 < length4) {
-					listeners4[i4](this.parent.width,this.parent.height);
-					if(!repeat4[i4]) {
-						lime.ui.Window.onWindowResize.remove(listeners4[i4]);
-						length4--;
-					} else i4++;
-				}
-			}
-			break;
-		case "beforeunload":
-			var listeners5 = lime.ui.Window.onWindowClose.listeners;
-			var repeat5 = lime.ui.Window.onWindowClose.repeat;
-			var length5 = listeners5.length;
-			var i5 = 0;
-			while(i5 < length5) {
-				listeners5[i5]();
-				if(!repeat5[i5]) {
-					lime.ui.Window.onWindowClose.remove(listeners5[i5]);
-					length5--;
-				} else i5++;
-			}
-			break;
-		}
 	}
 	,handleMouseEvent: function(event) {
 		var x = 0.0;
@@ -3198,40 +3218,40 @@ lime._backend.html5.HTML5Window.prototype = {
 			var _g = event.type;
 			switch(_g) {
 			case "mousedown":
-				var listeners = lime.ui.MouseEventManager.onMouseDown.listeners;
-				var repeat = lime.ui.MouseEventManager.onMouseDown.repeat;
+				var listeners = this.parent.onMouseDown.listeners;
+				var repeat = this.parent.onMouseDown.repeat;
 				var length = listeners.length;
 				var i = 0;
 				while(i < length) {
 					listeners[i](x,y,event.button);
 					if(!repeat[i]) {
-						lime.ui.MouseEventManager.onMouseDown.remove(listeners[i]);
+						this.parent.onMouseDown.remove(listeners[i]);
 						length--;
 					} else i++;
 				}
 				break;
 			case "mouseup":
-				var listeners1 = lime.ui.MouseEventManager.onMouseUp.listeners;
-				var repeat1 = lime.ui.MouseEventManager.onMouseUp.repeat;
+				var listeners1 = this.parent.onMouseUp.listeners;
+				var repeat1 = this.parent.onMouseUp.repeat;
 				var length1 = listeners1.length;
 				var i1 = 0;
 				while(i1 < length1) {
 					listeners1[i1](x,y,event.button);
 					if(!repeat1[i1]) {
-						lime.ui.MouseEventManager.onMouseUp.remove(listeners1[i1]);
+						this.parent.onMouseUp.remove(listeners1[i1]);
 						length1--;
 					} else i1++;
 				}
 				break;
 			case "mousemove":
-				var listeners2 = lime.ui.MouseEventManager.onMouseMove.listeners;
-				var repeat2 = lime.ui.MouseEventManager.onMouseMove.repeat;
+				var listeners2 = this.parent.onMouseMove.listeners;
+				var repeat2 = this.parent.onMouseMove.repeat;
 				var length2 = listeners2.length;
 				var i2 = 0;
 				while(i2 < length2) {
 					listeners2[i2](x,y,event.button);
 					if(!repeat2[i2]) {
-						lime.ui.MouseEventManager.onMouseMove.remove(listeners2[i2]);
+						this.parent.onMouseMove.remove(listeners2[i2]);
 						length2--;
 					} else i2++;
 				}
@@ -3239,14 +3259,14 @@ lime._backend.html5.HTML5Window.prototype = {
 			default:
 			}
 		} else {
-			var listeners3 = lime.ui.MouseEventManager.onMouseWheel.listeners;
-			var repeat3 = lime.ui.MouseEventManager.onMouseWheel.repeat;
+			var listeners3 = this.parent.onMouseWheel.listeners;
+			var repeat3 = this.parent.onMouseWheel.repeat;
 			var length3 = listeners3.length;
 			var i3 = 0;
 			while(i3 < length3) {
 				listeners3[i3](event.deltaX,event.deltaY);
 				if(!repeat3[i3]) {
-					lime.ui.MouseEventManager.onMouseWheel.remove(listeners3[i3]);
+					this.parent.onMouseWheel.remove(listeners3[i3]);
 					length3--;
 				} else i3++;
 			}
@@ -3317,40 +3337,40 @@ lime._backend.html5.HTML5Window.prototype = {
 		var _g = event.type;
 		switch(_g) {
 		case "touchstart":
-			var listeners = lime.ui.TouchEventManager.onTouchStart.listeners;
-			var repeat = lime.ui.TouchEventManager.onTouchStart.repeat;
+			var listeners = this.parent.onTouchStart.listeners;
+			var repeat = this.parent.onTouchStart.repeat;
 			var length = listeners.length;
 			var i = 0;
 			while(i < length) {
 				listeners[i](x,y,id);
 				if(!repeat[i]) {
-					lime.ui.TouchEventManager.onTouchStart.remove(listeners[i]);
+					this.parent.onTouchStart.remove(listeners[i]);
 					length--;
 				} else i++;
 			}
 			break;
 		case "touchmove":
-			var listeners1 = lime.ui.TouchEventManager.onTouchMove.listeners;
-			var repeat1 = lime.ui.TouchEventManager.onTouchMove.repeat;
+			var listeners1 = this.parent.onTouchMove.listeners;
+			var repeat1 = this.parent.onTouchMove.repeat;
 			var length1 = listeners1.length;
 			var i1 = 0;
 			while(i1 < length1) {
 				listeners1[i1](x,y,id);
 				if(!repeat1[i1]) {
-					lime.ui.TouchEventManager.onTouchMove.remove(listeners1[i1]);
+					this.parent.onTouchMove.remove(listeners1[i1]);
 					length1--;
 				} else i1++;
 			}
 			break;
 		case "touchend":
-			var listeners2 = lime.ui.TouchEventManager.onTouchEnd.listeners;
-			var repeat2 = lime.ui.TouchEventManager.onTouchEnd.repeat;
+			var listeners2 = this.parent.onTouchEnd.listeners;
+			var repeat2 = this.parent.onTouchEnd.repeat;
 			var length2 = listeners2.length;
 			var i2 = 0;
 			while(i2 < length2) {
 				listeners2[i2](x,y,id);
 				if(!repeat2[i2]) {
-					lime.ui.TouchEventManager.onTouchEnd.remove(listeners2[i2]);
+					this.parent.onTouchEnd.remove(listeners2[i2]);
 					length2--;
 				} else i2++;
 			}
@@ -3374,61 +3394,51 @@ lime.app.Module.__name__ = ["lime","app","Module"];
 lime.app.Module.prototype = {
 	__class__: lime.app.Module
 };
-lime.app.Event = function() {
-	this.listeners = new Array();
-	this.priorities = new Array();
-	this.repeat = new Array();
-};
-$hxClasses["lime.app.Event"] = lime.app.Event;
-lime.app.Event.__name__ = ["lime","app","Event"];
-lime.app.Event.prototype = {
-	add: function(listener,once,priority) {
-		if(priority == null) priority = 0;
-		if(once == null) once = false;
-		var _g1 = 0;
-		var _g = this.priorities.length;
-		while(_g1 < _g) {
-			var i = _g1++;
-			if(priority > this.priorities[i]) {
-				this.listeners.splice(i,0,listener);
-				this.priorities.splice(i,0,priority);
-				this.repeat.splice(i,0,!once);
-				return;
-			}
-		}
-		this.listeners.push(listener);
-		this.priorities.push(priority);
-		this.repeat.push(!once);
-	}
-	,remove: function(listener) {
-		var index = HxOverrides.indexOf(this.listeners,listener,0);
-		if(index > -1) {
-			this.listeners.splice(index,1);
-			this.priorities.splice(index,1);
-			this.repeat.splice(index,1);
-		}
-	}
-	,__class__: lime.app.Event
-};
 lime.app.Application = function() {
+	this.onUpdate = new lime.app.Event();
 	lime.app.Module.call(this);
+	if(lime.app.Application.current == null) lime.app.Application.current = this;
+	this.renderers = new Array();
 	this.windows = new Array();
 	this.backend = new lime._backend.html5.HTML5Application(this);
+	this.onUpdate.add($bind(this,this.update));
 };
 $hxClasses["lime.app.Application"] = lime.app.Application;
 lime.app.Application.__name__ = ["lime","app","Application"];
-lime.app.Application.__initialized = null;
-lime.app.Application.__instance = null;
+lime.app.Application.current = null;
 lime.app.Application.__super__ = lime.app.Module;
 lime.app.Application.prototype = $extend(lime.app.Module.prototype,{
-	addWindow: function(window) {
+	addRenderer: function(renderer) {
+		renderer.onRender.add($bind(this,this.render));
+		renderer.onRenderContextLost.add($bind(this,this.onRenderContextLost));
+		renderer.onRenderContextRestored.add($bind(this,this.onRenderContextRestored));
+		this.renderers.push(renderer);
+	}
+	,addWindow: function(window) {
 		this.windows.push(window);
+		window.onKeyDown.add($bind(this,this.onKeyDown));
+		window.onKeyUp.add($bind(this,this.onKeyUp));
+		window.onMouseDown.add($bind(this,this.onMouseDown));
+		window.onMouseMove.add($bind(this,this.onMouseMove));
+		window.onMouseUp.add($bind(this,this.onMouseUp));
+		window.onMouseWheel.add($bind(this,this.onMouseWheel));
+		window.onTouchStart.add($bind(this,this.onTouchStart));
+		window.onTouchMove.add($bind(this,this.onTouchMove));
+		window.onTouchEnd.add($bind(this,this.onTouchEnd));
+		window.onWindowActivate.add($bind(this,this.onWindowActivate));
+		window.onWindowClose.add($bind(this,this.onWindowClose));
+		window.onWindowDeactivate.add($bind(this,this.onWindowDeactivate));
+		window.onWindowFocusIn.add($bind(this,this.onWindowFocusIn));
+		window.onWindowFocusOut.add($bind(this,this.onWindowFocusOut));
+		window.onWindowMove.add($bind(this,this.onWindowMove));
+		window.onWindowResize.add($bind(this,this.onWindowResize));
 		window.create(this);
 	}
 	,create: function(config) {
 		this.backend.create(config);
 	}
 	,exec: function() {
+		lime.app.Application.current = this;
 		return this.backend.exec();
 	}
 	,init: function(context) {
@@ -3469,16 +3479,64 @@ lime.app.Application.prototype = $extend(lime.app.Module.prototype,{
 	}
 	,onWindowResize: function(width,height) {
 	}
+	,removeRenderer: function(renderer) {
+		if(renderer != null && HxOverrides.indexOf(this.renderers,renderer,0) > -1) HxOverrides.remove(this.renderers,renderer);
+	}
+	,removeWindow: function(window) {
+		if(window != null && HxOverrides.indexOf(this.windows,window,0) > -1) {
+			window.close();
+			HxOverrides.remove(this.windows,window);
+		}
+	}
 	,render: function(context) {
 	}
 	,update: function(deltaTime) {
+	}
+	,get_renderer: function() {
+		return this.renderers[0];
 	}
 	,get_window: function() {
 		return this.windows[0];
 	}
 	,__class__: lime.app.Application
-	,__properties__: {get_window:"get_window"}
+	,__properties__: {get_window:"get_window",get_renderer:"get_renderer"}
 });
+lime.app.Event = function() {
+	this.listeners = new Array();
+	this.priorities = new Array();
+	this.repeat = new Array();
+};
+$hxClasses["lime.app.Event"] = lime.app.Event;
+lime.app.Event.__name__ = ["lime","app","Event"];
+lime.app.Event.prototype = {
+	add: function(listener,once,priority) {
+		if(priority == null) priority = 0;
+		if(once == null) once = false;
+		var _g1 = 0;
+		var _g = this.priorities.length;
+		while(_g1 < _g) {
+			var i = _g1++;
+			if(priority > this.priorities[i]) {
+				this.listeners.splice(i,0,listener);
+				this.priorities.splice(i,0,priority);
+				this.repeat.splice(i,0,!once);
+				return;
+			}
+		}
+		this.listeners.push(listener);
+		this.priorities.push(priority);
+		this.repeat.push(!once);
+	}
+	,remove: function(listener) {
+		var index = HxOverrides.indexOf(this.listeners,listener,0);
+		if(index > -1) {
+			this.listeners.splice(index,1);
+			this.priorities.splice(index,1);
+			this.repeat.splice(index,1);
+		}
+	}
+	,__class__: lime.app.Event
+};
 lime.app.Preloader = function() {
 	this.total = 0;
 	this.loaded = 0;
@@ -3533,40 +3591,46 @@ lime.app.Preloader.prototype = {
 	}
 	,loadFont: function(font) {
 		var _g = this;
-		var node = window.document.createElement("span");
-		node.innerHTML = "giItT1WQy@!-/#";
-		var style = node.style;
-		style.position = "absolute";
-		style.left = "-10000px";
-		style.top = "-10000px";
-		style.fontSize = "300px";
-		style.fontFamily = "sans-serif";
-		style.fontVariant = "normal";
-		style.fontStyle = "normal";
-		style.fontWeight = "normal";
-		style.letterSpacing = "0";
-		window.document.body.appendChild(node);
-		var width = node.offsetWidth;
-		style.fontFamily = "'" + font + "', sans-serif";
-		var interval = null;
-		var found = false;
-		var checkFont = function() {
-			if(node.offsetWidth != width) {
-				if(!found) {
-					found = true;
-					return false;
+		if(window.document.fonts && window.document.fonts.load) window.document.fonts.load("1em '" + font + "'").then(function() {
+			_g.loaded++;
+			_g.update(_g.loaded,_g.total);
+			if(_g.loaded == _g.total) _g.start();
+		}); else {
+			var node = window.document.createElement("span");
+			node.innerHTML = "giItT1WQy@!-/#";
+			var style = node.style;
+			style.position = "absolute";
+			style.left = "-10000px";
+			style.top = "-10000px";
+			style.fontSize = "300px";
+			style.fontFamily = "sans-serif";
+			style.fontVariant = "normal";
+			style.fontStyle = "normal";
+			style.fontWeight = "normal";
+			style.letterSpacing = "0";
+			window.document.body.appendChild(node);
+			var width = node.offsetWidth;
+			style.fontFamily = "'" + font + "', sans-serif";
+			var interval = null;
+			var found = false;
+			var checkFont = function() {
+				if(node.offsetWidth != width) {
+					if(!found) {
+						found = true;
+						return false;
+					}
+					_g.loaded++;
+					if(interval != null) window.clearInterval(interval);
+					node.parentNode.removeChild(node);
+					node = null;
+					_g.update(_g.loaded,_g.total);
+					if(_g.loaded == _g.total) _g.start();
+					return true;
 				}
-				_g.loaded++;
-				if(interval != null) window.clearInterval(interval);
-				node.parentNode.removeChild(node);
-				node = null;
-				_g.update(_g.loaded,_g.total);
-				if(_g.loaded == _g.total) _g.start();
-				return true;
-			}
-			return false;
-		};
-		if(!checkFont()) interval = window.setInterval(checkFont,50);
+				return false;
+			};
+			if(!checkFont()) interval = window.setInterval(checkFont,50);
+		}
 	}
 	,start: function() {
 		if(this.onComplete != null) this.onComplete();
@@ -4104,13 +4168,13 @@ lime.audio.AudioSource.prototype = {
 		return 1;
 	}
 	,set_gain: function(value) {
-		return value;
+		return 1;
 	}
 	,get_timeOffset: function() {
 		return 0;
 	}
 	,set_timeOffset: function(value) {
-		return value;
+		return 0;
 	}
 	,__class__: lime.audio.AudioSource
 	,__properties__: {set_timeOffset:"set_timeOffset",get_timeOffset:"get_timeOffset",set_gain:"set_gain",get_gain:"get_gain"}
@@ -4809,8 +4873,8 @@ lime.graphics.Image = function(buffer,offsetX,offsetY,width,height,color,type) {
 	this.width = width;
 	this.height = height;
 	if(type == null) {
-		if(lime.app.Application.__instance != null && lime.app.Application.__instance.windows[0] != null && lime.app.Application.__instance.windows[0].currentRenderer != null) {
-			var _g = lime.app.Application.__instance.windows[0].currentRenderer.context;
+		if(lime.app.Application.current != null && lime.app.Application.current.renderers[0] != null) {
+			var _g = lime.app.Application.current.renderers[0].context;
 			switch(_g[1]) {
 			case 2:case 1:
 				this.type = lime.graphics.ImageType.CANVAS;
@@ -5404,21 +5468,24 @@ lime.graphics.RenderContext.FLASH = function(stage) { var $x = ["FLASH",3,stage]
 lime.graphics.RenderContext.CONSOLE = function(context) { var $x = ["CONSOLE",4,context]; $x.__enum__ = lime.graphics.RenderContext; $x.toString = $estr; return $x; };
 lime.graphics.RenderContext.CUSTOM = function(data) { var $x = ["CUSTOM",5,data]; $x.__enum__ = lime.graphics.RenderContext; $x.toString = $estr; return $x; };
 lime.graphics.Renderer = function(window) {
+	this.onRender = new lime.app.Event();
+	this.onRenderContextRestored = new lime.app.Event();
+	this.onRenderContextLost = new lime.app.Event();
 	this.window = window;
 	this.backend = new lime._backend.html5.HTML5Renderer(this);
 	this.window.currentRenderer = this;
 };
 $hxClasses["lime.graphics.Renderer"] = lime.graphics.Renderer;
 lime.graphics.Renderer.__name__ = ["lime","graphics","Renderer"];
-lime.graphics.Renderer.render = function() {
-	lime._backend.html5.HTML5Renderer.render();
-};
 lime.graphics.Renderer.prototype = {
 	create: function() {
 		this.backend.create();
 	}
 	,flip: function() {
 		this.backend.flip();
+	}
+	,render: function() {
+		this.backend.render();
 	}
 	,__class__: lime.graphics.Renderer
 };
@@ -6047,7 +6114,7 @@ lime.graphics.utils.ImageCanvasUtil.createImageData = function(image) {
 	var buffer = image.buffer;
 	if(buffer.data == null) {
 		buffer.__srcImageData = buffer.__srcContext.getImageData(0,0,buffer.width,buffer.height);
-		buffer.data = buffer.__srcImageData.data;
+		buffer.data = new Uint8Array(buffer.__srcImageData.data.buffer);
 	}
 };
 lime.graphics.utils.ImageCanvasUtil.fillRect = function(image,rect,color) {
@@ -7878,15 +7945,12 @@ lime.net.URLLoader = function(request) {
 	this.bytesLoaded = 0;
 	this.bytesTotal = 0;
 	this.set_dataFormat(lime.net.URLLoaderDataFormat.TEXT);
-	this.__data = "";
-	this.__curl = lime.net.curl.CURLEasy.init();
 	if(request != null) this.load(request);
 };
 $hxClasses["lime.net.URLLoader"] = lime.net.URLLoader;
 lime.net.URLLoader.__name__ = ["lime","net","URLLoader"];
 lime.net.URLLoader.prototype = {
 	close: function() {
-		lime.net.curl.CURLEasy.cleanup(this.__curl);
 	}
 	,getData: function() {
 		return null;
@@ -8194,85 +8258,12 @@ lime.net.URLVariables.prototype = {
 	}
 	,__class__: lime.net.URLVariables
 };
-lime.net.curl = {};
-lime.net.curl._CURL = {};
-lime.net.curl._CURL.CURL_Impl_ = function() { };
-$hxClasses["lime.net.curl._CURL.CURL_Impl_"] = lime.net.curl._CURL.CURL_Impl_;
-lime.net.curl._CURL.CURL_Impl_.__name__ = ["lime","net","curl","_CURL","CURL_Impl_"];
-lime.net.curl._CURL.CURL_Impl_.getDate = function(date,now) {
-	return 0;
-};
-lime.net.curl._CURL.CURL_Impl_.globalCleanup = function() {
-};
-lime.net.curl._CURL.CURL_Impl_.globalInit = function(flags) {
-	return 0;
-};
-lime.net.curl._CURL.CURL_Impl_.version = function() {
-	return null;
-};
-lime.net.curl._CURL.CURL_Impl_.versionInfo = function(type) {
-	return null;
-};
-lime.net.curl._CURL.CURL_Impl_.intGt = function(a,b) {
-	return a > b;
-};
-lime.net.curl._CURLCode = {};
-lime.net.curl._CURLCode.CURLCode_Impl_ = function() { };
-$hxClasses["lime.net.curl._CURLCode.CURLCode_Impl_"] = lime.net.curl._CURLCode.CURLCode_Impl_;
-lime.net.curl._CURLCode.CURLCode_Impl_.__name__ = ["lime","net","curl","_CURLCode","CURLCode_Impl_"];
-lime.net.curl.CURLEasy = function() { };
-$hxClasses["lime.net.curl.CURLEasy"] = lime.net.curl.CURLEasy;
-lime.net.curl.CURLEasy.__name__ = ["lime","net","curl","CURLEasy"];
-lime.net.curl.CURLEasy.cleanup = function(handle) {
-};
-lime.net.curl.CURLEasy.duphandle = function(handle) {
-	return 0;
-};
-lime.net.curl.CURLEasy.escape = function(handle,url,length) {
-	return null;
-};
-lime.net.curl.CURLEasy.getinfo = function(handle,info) {
-	return null;
-};
-lime.net.curl.CURLEasy.init = function() {
-	return 0;
-};
-lime.net.curl.CURLEasy.pause = function(handle,bitMask) {
-	return 0;
-};
-lime.net.curl.CURLEasy.perform = function(handle) {
-	return 0;
-};
-lime.net.curl.CURLEasy.reset = function(handle) {
-	return 0;
-};
-lime.net.curl.CURLEasy.setopt = function(handle,option,parameter) {
-	return 0;
-};
-lime.net.curl.CURLEasy.strerror = function(code) {
-	return null;
-};
-lime.net.curl.CURLEasy.unescape = function(handle,url,inLength,outLength) {
-	return null;
-};
-lime.net.curl._CURLInfo = {};
-lime.net.curl._CURLInfo.CURLInfo_Impl_ = function() { };
-$hxClasses["lime.net.curl._CURLInfo.CURLInfo_Impl_"] = lime.net.curl._CURLInfo.CURLInfo_Impl_;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.__name__ = ["lime","net","curl","_CURLInfo","CURLInfo_Impl_"];
-lime.net.curl._CURLOption = {};
-lime.net.curl._CURLOption.CURLOption_Impl_ = function() { };
-$hxClasses["lime.net.curl._CURLOption.CURLOption_Impl_"] = lime.net.curl._CURLOption.CURLOption_Impl_;
-lime.net.curl._CURLOption.CURLOption_Impl_.__name__ = ["lime","net","curl","_CURLOption","CURLOption_Impl_"];
-lime.net.curl._CURLVersion = {};
-lime.net.curl._CURLVersion.CURLVersion_Impl_ = function() { };
-$hxClasses["lime.net.curl._CURLVersion.CURLVersion_Impl_"] = lime.net.curl._CURLVersion.CURLVersion_Impl_;
-lime.net.curl._CURLVersion.CURLVersion_Impl_.__name__ = ["lime","net","curl","_CURLVersion","CURLVersion_Impl_"];
 lime.system = {};
 lime.system.System = function() { };
 $hxClasses["lime.system.System"] = lime.system.System;
 lime.system.System.__name__ = ["lime","system","System"];
 lime.system.System.disableCFFI = null;
-lime.system.System.embed = $hx_exports.lime.embed = function(element,width,height,background) {
+lime.system.System.embed = $hx_exports.lime.embed = function(element,width,height,background,assetsPrefix) {
 	var htmlElement = null;
 	if(typeof(element) == "string") htmlElement = window.document.getElementById(js.Boot.__cast(element , String)); else if(element == null) htmlElement = window.document.createElement("div"); else htmlElement = element;
 	var color = null;
@@ -8286,10 +8277,14 @@ lime.system.System.embed = $hx_exports.lime.embed = function(element,width,heigh
 	ApplicationMain.config.element = htmlElement;
 	ApplicationMain.config.width = width;
 	ApplicationMain.config.height = height;
+	ApplicationMain.config.assetsPrefix = assetsPrefix;
 	ApplicationMain.create();
 };
 lime.system.System.findHaxeLib = function(library) {
 	return "";
+};
+lime.system.System.getTimer = function() {
+	return Std["int"]((haxe.Timer.stamp() - lime.system.System.__startTime) * 1000);
 };
 lime.system.System.load = function(library,method,args,lazy) {
 	if(lazy == null) lazy = false;
@@ -8315,9 +8310,53 @@ lime.ui._KeyCode = {};
 lime.ui._KeyCode.KeyCode_Impl_ = function() { };
 $hxClasses["lime.ui._KeyCode.KeyCode_Impl_"] = lime.ui._KeyCode.KeyCode_Impl_;
 lime.ui._KeyCode.KeyCode_Impl_.__name__ = ["lime","ui","_KeyCode","KeyCode_Impl_"];
-lime.ui.KeyEventManager = function() { };
-$hxClasses["lime.ui.KeyEventManager"] = lime.ui.KeyEventManager;
-lime.ui.KeyEventManager.__name__ = ["lime","ui","KeyEventManager"];
+lime.ui._KeyModifier = {};
+lime.ui._KeyModifier.KeyModifier_Impl_ = function() { };
+$hxClasses["lime.ui._KeyModifier.KeyModifier_Impl_"] = lime.ui._KeyModifier.KeyModifier_Impl_;
+lime.ui._KeyModifier.KeyModifier_Impl_.__name__ = ["lime","ui","_KeyModifier","KeyModifier_Impl_"];
+lime.ui._KeyModifier.KeyModifier_Impl_.__properties__ = {set_shiftKey:"set_shiftKey",get_shiftKey:"get_shiftKey",set_numLock:"set_numLock",get_numLock:"get_numLock",set_metaKey:"set_metaKey",get_metaKey:"get_metaKey",set_ctrlKey:"set_ctrlKey",get_ctrlKey:"get_ctrlKey",set_capsLock:"set_capsLock",get_capsLock:"get_capsLock",set_altKey:"set_altKey",get_altKey:"get_altKey"}
+lime.ui._KeyModifier.KeyModifier_Impl_.get_altKey = function(this1) {
+	return (this1 & 256) > 0 || (this1 & 512) > 0;
+};
+lime.ui._KeyModifier.KeyModifier_Impl_.set_altKey = function(this1,value) {
+	if(value) this1 |= 768; else this1 &= 268435455 - 768;
+	return value;
+};
+lime.ui._KeyModifier.KeyModifier_Impl_.get_capsLock = function(this1) {
+	return (this1 & 8192) > 0 || (this1 & 8192) > 0;
+};
+lime.ui._KeyModifier.KeyModifier_Impl_.set_capsLock = function(this1,value) {
+	if(value) this1 |= 8192; else this1 &= 268435455 - 8192;
+	return value;
+};
+lime.ui._KeyModifier.KeyModifier_Impl_.get_ctrlKey = function(this1) {
+	return (this1 & 64) > 0 || (this1 & 128) > 0;
+};
+lime.ui._KeyModifier.KeyModifier_Impl_.set_ctrlKey = function(this1,value) {
+	if(value) this1 |= 192; else this1 &= 268435455 - 192;
+	return value;
+};
+lime.ui._KeyModifier.KeyModifier_Impl_.get_metaKey = function(this1) {
+	return (this1 & 1024) > 0 || (this1 & 2048) > 0;
+};
+lime.ui._KeyModifier.KeyModifier_Impl_.set_metaKey = function(this1,value) {
+	if(value) this1 |= 3072; else this1 &= 268435455 - 3072;
+	return value;
+};
+lime.ui._KeyModifier.KeyModifier_Impl_.get_numLock = function(this1) {
+	return (this1 & 4096) > 0 || (this1 & 4096) > 0;
+};
+lime.ui._KeyModifier.KeyModifier_Impl_.set_numLock = function(this1,value) {
+	if(value) this1 |= 4096; else this1 &= 268435455 - 4096;
+	return value;
+};
+lime.ui._KeyModifier.KeyModifier_Impl_.get_shiftKey = function(this1) {
+	return (this1 & 1) > 0 || (this1 & 2) > 0;
+};
+lime.ui._KeyModifier.KeyModifier_Impl_.set_shiftKey = function(this1,value) {
+	if(value) this1 |= 3; else this1 &= 268435455 - 3;
+	return value;
+};
 lime.ui.Mouse = function() { };
 $hxClasses["lime.ui.Mouse"] = lime.ui.Mouse;
 lime.ui.Mouse.__name__ = ["lime","ui","Mouse"];
@@ -8374,20 +8413,43 @@ lime.ui.MouseCursor.WAIT_ARROW.__enum__ = lime.ui.MouseCursor;
 lime.ui.MouseCursor.CUSTOM = ["CUSTOM",12];
 lime.ui.MouseCursor.CUSTOM.toString = $estr;
 lime.ui.MouseCursor.CUSTOM.__enum__ = lime.ui.MouseCursor;
-lime.ui.MouseEventManager = function() { };
-$hxClasses["lime.ui.MouseEventManager"] = lime.ui.MouseEventManager;
-lime.ui.MouseEventManager.__name__ = ["lime","ui","MouseEventManager"];
-lime.ui.TouchEventManager = function() { };
-$hxClasses["lime.ui.TouchEventManager"] = lime.ui.TouchEventManager;
-lime.ui.TouchEventManager.__name__ = ["lime","ui","TouchEventManager"];
 lime.ui.Window = function(config) {
+	this.onWindowResize = new lime.app.Event();
+	this.onWindowMove = new lime.app.Event();
+	this.onWindowFocusOut = new lime.app.Event();
+	this.onWindowFocusIn = new lime.app.Event();
+	this.onWindowDeactivate = new lime.app.Event();
+	this.onWindowClose = new lime.app.Event();
+	this.onWindowActivate = new lime.app.Event();
+	this.onTouchStart = new lime.app.Event();
+	this.onTouchMove = new lime.app.Event();
+	this.onTouchEnd = new lime.app.Event();
+	this.onMouseWheel = new lime.app.Event();
+	this.onMouseUp = new lime.app.Event();
+	this.onMouseMove = new lime.app.Event();
+	this.onMouseDown = new lime.app.Event();
+	this.onKeyUp = new lime.app.Event();
+	this.onKeyDown = new lime.app.Event();
 	this.config = config;
+	this.width = 0;
+	this.height = 0;
+	this.fullscreen = false;
+	this.x = 0;
+	this.y = 0;
+	if(config != null) {
+		if(Object.prototype.hasOwnProperty.call(config,"width")) this.width = config.width;
+		if(Object.prototype.hasOwnProperty.call(config,"height")) this.height = config.height;
+		if(Object.prototype.hasOwnProperty.call(config,"fullscreen")) this.fullscreen = config.fullscreen;
+	}
 	this.backend = new lime._backend.html5.HTML5Window(this);
 };
 $hxClasses["lime.ui.Window"] = lime.ui.Window;
 lime.ui.Window.__name__ = ["lime","ui","Window"];
 lime.ui.Window.prototype = {
-	create: function(application) {
+	close: function() {
+		this.backend.close();
+	}
+	,create: function(application) {
 		this.backend.create(application);
 		if(this.currentRenderer != null) this.currentRenderer.create();
 	}
@@ -8794,7 +8856,6 @@ openfl.display.MovieClip = function() {
 	this.__currentLabels = [];
 	this.__totalFrames = 0;
 	this.enabled = true;
-	this.loaderInfo = openfl.display.LoaderInfo.create(null);
 };
 $hxClasses["openfl.display.MovieClip"] = openfl.display.MovieClip;
 openfl.display.MovieClip.__name__ = ["openfl","display","MovieClip"];
@@ -8846,7 +8907,7 @@ openfl.display.LoaderInfo.__name__ = ["openfl","display","LoaderInfo"];
 openfl.display.LoaderInfo.create = function(loader) {
 	var loaderInfo = new openfl.display.LoaderInfo();
 	loaderInfo.uncaughtErrorEvents = new openfl.events.UncaughtErrorEvents();
-	if(loader != null) loaderInfo.loader = loader; else loaderInfo.url = "";
+	if(loader != null) loaderInfo.loader = loader; else loaderInfo.url = openfl.display.LoaderInfo.__rootURL;
 	return loaderInfo;
 };
 openfl.display.LoaderInfo.__super__ = openfl.events.EventDispatcher;
@@ -9165,11 +9226,11 @@ openfl.Lib["as"] = function(v,c) {
 openfl.Lib.attach = function(name) {
 	return new openfl.display.MovieClip();
 };
-openfl.Lib.embed = $hx_exports.openfl.embed = function(elementName,width,height,background) {
-	lime.system.System.embed(elementName,width,height,background);
+openfl.Lib.embed = $hx_exports.openfl.embed = function(elementName,width,height,background,assetsPrefix) {
+	lime.system.System.embed(elementName,width,height,background,assetsPrefix);
 };
 openfl.Lib.getTimer = function() {
-	return Std["int"]((haxe.Timer.stamp() - openfl.Lib.__startTime) * 1000);
+	return lime.system.System.getTimer();
 };
 openfl.Lib.getURL = function(request,target) {
 	if(target == null) target = "_blank";
@@ -9178,7 +9239,7 @@ openfl.Lib.getURL = function(request,target) {
 openfl.Lib.notImplemented = function(api) {
 	if(!openfl.Lib.__sentWarnings.exists(api)) {
 		openfl.Lib.__sentWarnings.set(api,true);
-		haxe.Log.trace("Warning: " + api + " is not implemented",{ fileName : "Lib.hx", lineNumber : 117, className : "openfl.Lib", methodName : "notImplemented"});
+		haxe.Log.trace("Warning: " + api + " is not implemented",{ fileName : "Lib.hx", lineNumber : 115, className : "openfl.Lib", methodName : "notImplemented"});
 	}
 };
 openfl.Lib.preventDefaultTouchMove = function() {
@@ -9187,7 +9248,7 @@ openfl.Lib.preventDefaultTouchMove = function() {
 	},false);
 };
 openfl.Lib.trace = function(arg) {
-	haxe.Log.trace(arg,{ fileName : "Lib.hx", lineNumber : 148, className : "openfl.Lib", methodName : "trace"});
+	haxe.Log.trace(arg,{ fileName : "Lib.hx", lineNumber : 146, className : "openfl.Lib", methodName : "trace"});
 };
 openfl.Memory = function() { };
 $hxClasses["openfl.Memory"] = openfl.Memory;
@@ -9982,7 +10043,7 @@ openfl._internal.renderer.canvas.CanvasGraphics.render = function(graphics,rende
 								openfl._internal.renderer.canvas.CanvasGraphics.context.lineCap = Std.string(caps).toLowerCase();
 							}
 							if(miterLimit == null) openfl._internal.renderer.canvas.CanvasGraphics.context.miterLimit = 3; else openfl._internal.renderer.canvas.CanvasGraphics.context.miterLimit = miterLimit;
-							if(alpha1 == 1) if(color == null) openfl._internal.renderer.canvas.CanvasGraphics.context.strokeStyle = "#000000"; else openfl._internal.renderer.canvas.CanvasGraphics.context.strokeStyle = "#" + StringTools.hex(color & 16777215,6); else {
+							if(alpha1 == 1 || alpha1 == null) if(color == null) openfl._internal.renderer.canvas.CanvasGraphics.context.strokeStyle = "#000000"; else openfl._internal.renderer.canvas.CanvasGraphics.context.strokeStyle = "#" + StringTools.hex(color & 16777215,6); else {
 								var r1 = (color & 16711680) >>> 16;
 								var g1 = (color & 65280) >>> 8;
 								var b1 = color & 255;
@@ -10366,14 +10427,155 @@ openfl._internal.renderer.canvas.CanvasShape.render = function(shape,renderSessi
 	if(graphics != null) {
 		openfl._internal.renderer.canvas.CanvasGraphics.render(graphics,renderSession);
 		if(graphics.__canvas != null) {
+			if(shape.__mask != null) renderSession.maskManager.pushMask(shape.__mask);
 			var context = renderSession.context;
 			var scrollRect = shape.get_scrollRect();
 			context.globalAlpha = shape.__worldAlpha;
 			var transform = shape.__worldTransform;
 			if(renderSession.roundPixels) context.setTransform(transform.a,transform.b,transform.c,transform.d,transform.tx | 0,transform.ty | 0); else context.setTransform(transform.a,transform.b,transform.c,transform.d,transform.tx,transform.ty);
 			if(scrollRect == null) context.drawImage(graphics.__canvas,graphics.__bounds.x,graphics.__bounds.y); else context.drawImage(graphics.__canvas,scrollRect.x - graphics.__bounds.x,scrollRect.y - graphics.__bounds.y,scrollRect.width,scrollRect.height,graphics.__bounds.x + scrollRect.x,graphics.__bounds.y + scrollRect.y,scrollRect.width,scrollRect.height);
+			if(shape.__mask != null) renderSession.maskManager.popMask();
 		}
 	}
+};
+openfl._internal.renderer.canvas.CanvasTextField = function() { };
+$hxClasses["openfl._internal.renderer.canvas.CanvasTextField"] = openfl._internal.renderer.canvas.CanvasTextField;
+openfl._internal.renderer.canvas.CanvasTextField.__name__ = ["openfl","_internal","renderer","canvas","CanvasTextField"];
+openfl._internal.renderer.canvas.CanvasTextField.context = null;
+openfl._internal.renderer.canvas.CanvasTextField.render = function(textField,renderSession) {
+	if(!textField.__renderable || textField.__worldAlpha <= 0) return;
+	openfl._internal.renderer.canvas.CanvasTextField.update(textField);
+	if(textField.__canvas != null) {
+		var context = renderSession.context;
+		context.globalAlpha = textField.__worldAlpha;
+		var transform = textField.__worldTransform;
+		var scrollRect = textField.get_scrollRect();
+		if(renderSession.roundPixels) context.setTransform(transform.a,transform.b,transform.c,transform.d,transform.tx | 0,transform.ty | 0); else context.setTransform(transform.a,transform.b,transform.c,transform.d,transform.tx,transform.ty);
+		if(scrollRect == null) context.drawImage(textField.__canvas,0,0); else context.drawImage(textField.__canvas,scrollRect.x,scrollRect.y,scrollRect.width,scrollRect.height,scrollRect.x,scrollRect.y,scrollRect.width,scrollRect.height);
+	}
+};
+openfl._internal.renderer.canvas.CanvasTextField.renderText = function(textField,text,format,offsetX) {
+	openfl._internal.renderer.canvas.CanvasTextField.context.font = textField.__getFont(format);
+	openfl._internal.renderer.canvas.CanvasTextField.context.textBaseline = "top";
+	openfl._internal.renderer.canvas.CanvasTextField.context.fillStyle = "#" + StringTools.hex(format.color,6);
+	var lines = text.split("\n");
+	var yOffset = 0;
+	var _g = 0;
+	while(_g < lines.length) {
+		var line = lines[_g];
+		++_g;
+		var _g1 = format.align;
+		switch(_g1[1]) {
+		case 3:
+			openfl._internal.renderer.canvas.CanvasTextField.context.textAlign = "center";
+			openfl._internal.renderer.canvas.CanvasTextField.context.fillText(line,textField.__width / 2,2 + yOffset,textField.__width - 4);
+			break;
+		case 1:
+			openfl._internal.renderer.canvas.CanvasTextField.context.textAlign = "end";
+			openfl._internal.renderer.canvas.CanvasTextField.context.fillText(line,textField.__width - 2,2 + yOffset,textField.__width - 4);
+			break;
+		default:
+			openfl._internal.renderer.canvas.CanvasTextField.context.textAlign = "start";
+			openfl._internal.renderer.canvas.CanvasTextField.context.fillText(line,2 + offsetX,2 + yOffset,textField.__width - 4);
+		}
+		yOffset += textField.get_textHeight();
+	}
+};
+openfl._internal.renderer.canvas.CanvasTextField.update = function(textField) {
+	if(textField.__dirty) {
+		if((textField.__text == null || textField.__text == "") && !textField.background && !textField.border || (textField.get_width() <= 0 || textField.get_height() <= 0) && textField.autoSize != openfl.text.TextFieldAutoSize.LEFT) {
+			textField.__canvas = null;
+			textField.__context = null;
+			textField.__dirty = false;
+		} else {
+			if(textField.__canvas == null) {
+				textField.__canvas = window.document.createElement("canvas");
+				textField.__context = textField.__canvas.getContext("2d");
+			}
+			openfl._internal.renderer.canvas.CanvasTextField.context = textField.__context;
+			if(textField.__text != null && textField.__text != "") {
+				var text = textField.get_text();
+				if(textField.displayAsPassword) {
+					var length = text.length;
+					var mask = "";
+					var _g = 0;
+					while(_g < length) {
+						var i = _g++;
+						mask += "*";
+					}
+					text = mask;
+				}
+				var measurements = textField.__measureText();
+				var textWidth = 0.0;
+				var _g1 = 0;
+				while(_g1 < measurements.length) {
+					var measurement = measurements[_g1];
+					++_g1;
+					textWidth += measurement;
+				}
+				if(textField.autoSize == openfl.text.TextFieldAutoSize.LEFT) textField.__width = textWidth + 4;
+				textField.__canvas.width = Math.ceil(textField.__width);
+				textField.__canvas.height = Math.ceil(textField.__height);
+				if(textField.border || textField.background) {
+					textField.__context.rect(0.5,0.5,textField.__width - 1,textField.__height - 1);
+					if(textField.background) {
+						openfl._internal.renderer.canvas.CanvasTextField.context.fillStyle = "#" + StringTools.hex(textField.backgroundColor,6);
+						openfl._internal.renderer.canvas.CanvasTextField.context.fill();
+					}
+					if(textField.border) {
+						openfl._internal.renderer.canvas.CanvasTextField.context.lineWidth = 1;
+						openfl._internal.renderer.canvas.CanvasTextField.context.strokeStyle = "#" + StringTools.hex(textField.borderColor,6);
+						openfl._internal.renderer.canvas.CanvasTextField.context.stroke();
+					}
+				}
+				if(textField.__hasFocus && textField.__selectionStart == textField.__cursorPosition && textField.__showCursor) {
+					var cursorOffset = textField.__getTextWidth(text.substring(0,textField.__cursorPosition));
+					openfl._internal.renderer.canvas.CanvasTextField.context.fillStyle = "#" + StringTools.hex(textField.__textFormat.color,6);
+					openfl._internal.renderer.canvas.CanvasTextField.context.fillRect(cursorOffset,5,1,textField.__textFormat.size - 5);
+				} else if(textField.__hasFocus && Math.abs(textField.__selectionStart - textField.__cursorPosition) > 0 && !textField.__isKeyDown) {
+					var lowPos = Std["int"](Math.min(textField.__selectionStart,textField.__cursorPosition));
+					var highPos = Std["int"](Math.max(textField.__selectionStart,textField.__cursorPosition));
+					var xPos = textField.__getTextWidth(text.substring(0,lowPos));
+					var widthPos = textField.__getTextWidth(text.substring(lowPos,highPos));
+					openfl._internal.renderer.canvas.CanvasTextField.context.fillStyle = "#" + StringTools.hex(textField.__textFormat.color,6);
+					openfl._internal.renderer.canvas.CanvasTextField.context.fillRect(xPos,5,widthPos,textField.__textFormat.size - 5);
+				}
+				if(textField.__ranges == null) openfl._internal.renderer.canvas.CanvasTextField.renderText(textField,text,textField.__textFormat,0); else {
+					var currentIndex = 0;
+					var range;
+					var offsetX = 0.0;
+					var _g11 = 0;
+					var _g2 = textField.__ranges.length;
+					while(_g11 < _g2) {
+						var i1 = _g11++;
+						range = textField.__ranges[i1];
+						openfl._internal.renderer.canvas.CanvasTextField.renderText(textField,text.substring(range.start,range.end),range.format,offsetX);
+						offsetX += measurements[i1];
+					}
+				}
+			} else {
+				if(textField.autoSize == openfl.text.TextFieldAutoSize.LEFT) textField.__width = 4;
+				textField.__canvas.width = Math.ceil(textField.__width);
+				textField.__canvas.height = Math.ceil(textField.__height);
+				if(textField.border || textField.background) {
+					if(textField.border) openfl._internal.renderer.canvas.CanvasTextField.context.rect(0.5,0.5,textField.__width - 1,textField.__height - 1); else textField.__context.rect(0,0,textField.__width,textField.__height);
+					if(textField.background) {
+						openfl._internal.renderer.canvas.CanvasTextField.context.fillStyle = "#" + StringTools.hex(textField.backgroundColor,6);
+						openfl._internal.renderer.canvas.CanvasTextField.context.fill();
+					}
+					if(textField.border) {
+						openfl._internal.renderer.canvas.CanvasTextField.context.lineWidth = 1;
+						openfl._internal.renderer.canvas.CanvasTextField.context.lineCap = "square";
+						openfl._internal.renderer.canvas.CanvasTextField.context.strokeStyle = "#" + StringTools.hex(textField.borderColor,6);
+						openfl._internal.renderer.canvas.CanvasTextField.context.stroke();
+					}
+				}
+			}
+			textField.__dirty = false;
+			return true;
+		}
+	}
+	return false;
 };
 openfl._internal.renderer.canvas.MaskManager = function(renderSession) {
 	this.renderSession = renderSession;
@@ -10384,8 +10586,7 @@ openfl._internal.renderer.canvas.MaskManager.prototype = {
 	pushMask: function(mask) {
 		var context = this.renderSession.context;
 		context.save();
-		var transform = mask.__worldTransform;
-		if(transform == null) transform = new openfl.geom.Matrix();
+		var transform = mask.__getTransform();
 		context.setTransform(transform.a,transform.c,transform.b,transform.d,transform.tx,transform.ty);
 		context.beginPath();
 		mask.__renderMask(this.renderSession);
@@ -10565,6 +10766,50 @@ openfl._internal.renderer.dom.DOMShape.render = function(shape,renderSession) {
 		shape.__style = null;
 	}
 };
+openfl._internal.renderer.dom.DOMTextField = function() { };
+$hxClasses["openfl._internal.renderer.dom.DOMTextField"] = openfl._internal.renderer.dom.DOMTextField;
+openfl._internal.renderer.dom.DOMTextField.__name__ = ["openfl","_internal","renderer","dom","DOMTextField"];
+openfl._internal.renderer.dom.DOMTextField.render = function(textField,renderSession) {
+	if(textField.stage != null && textField.__worldVisible && textField.__renderable) {
+		if(textField.__dirty || textField.__div == null) {
+			if(textField.__text != "" || textField.background || textField.border) {
+				if(textField.__div == null) {
+					textField.__div = window.document.createElement("div");
+					openfl._internal.renderer.dom.DOMRenderer.initializeElement(textField,textField.__div,renderSession);
+					textField.__style.setProperty("cursor","inherit",null);
+				}
+				var style = textField.__style;
+				textField.__div.innerHTML = textField.__text;
+				if(textField.background) style.setProperty("background-color","#" + StringTools.hex(textField.backgroundColor,6),null); else style.removeProperty("background-color");
+				if(textField.border) style.setProperty("border","solid 1px #" + StringTools.hex(textField.borderColor,6),null); else style.removeProperty("border");
+				style.setProperty("font",textField.__getFont(textField.__textFormat),null);
+				style.setProperty("color","#" + StringTools.hex(textField.__textFormat.color,6),null);
+				if(textField.autoSize != openfl.text.TextFieldAutoSize.NONE) style.setProperty("width","auto",null); else style.setProperty("width",textField.__width + "px",null);
+				style.setProperty("height",textField.__height + "px",null);
+				var _g = textField.__textFormat.align;
+				switch(_g[1]) {
+				case 3:
+					style.setProperty("text-align","center",null);
+					break;
+				case 1:
+					style.setProperty("text-align","right",null);
+					break;
+				default:
+					style.setProperty("text-align","left",null);
+				}
+				textField.__dirty = false;
+			} else if(textField.__div != null) {
+				renderSession.element.removeChild(textField.__div);
+				textField.__div = null;
+			}
+		}
+		if(textField.__div != null) openfl._internal.renderer.dom.DOMRenderer.applyStyle(textField,renderSession,true,true,false);
+	} else if(textField.__div != null) {
+		renderSession.element.removeChild(textField.__div);
+		textField.__div = null;
+		textField.__style = null;
+	}
+};
 openfl._internal.renderer.opengl = {};
 openfl._internal.renderer.opengl.GLBitmap = function() { };
 $hxClasses["openfl._internal.renderer.opengl.GLBitmap"] = openfl._internal.renderer.opengl.GLBitmap;
@@ -10701,6 +10946,28 @@ openfl._internal.renderer.opengl.GLRenderer.prototype = $extend(openfl._internal
 	}
 	,__class__: openfl._internal.renderer.opengl.GLRenderer
 });
+openfl._internal.renderer.opengl.GLTextField = function() { };
+$hxClasses["openfl._internal.renderer.opengl.GLTextField"] = openfl._internal.renderer.opengl.GLTextField;
+openfl._internal.renderer.opengl.GLTextField.__name__ = ["openfl","_internal","renderer","opengl","GLTextField"];
+openfl._internal.renderer.opengl.GLTextField.render = function(textField,renderSession) {
+	if(!textField.__renderable || textField.__worldAlpha <= 0) return;
+	var gl = renderSession.gl;
+	var changed = openfl._internal.renderer.canvas.CanvasTextField.update(textField);
+	if(textField.__texture == null) {
+		textField.__texture = gl.createTexture();
+		gl.bindTexture(gl.TEXTURE_2D,textField.__texture);
+		gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+		changed = true;
+	}
+	if(changed) {
+		gl.bindTexture(gl.TEXTURE_2D,textField.__texture);
+		gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,textField.__canvas);
+		gl.bindTexture(gl.TEXTURE_2D,null);
+	}
+};
 openfl._internal.renderer.opengl.shaders = {};
 openfl._internal.renderer.opengl.shaders.AbstractShader = function(gl) {
 	this._UID = openfl._internal.renderer.opengl.shaders.AbstractShader.__UID++;
@@ -12702,7 +12969,7 @@ openfl._internal.renderer.opengl.utils.GraphicsRenderer.updateGraphics = functio
 	if(localCoords == null) localCoords = false;
 	var graphics = object.__graphics;
 	openfl._internal.renderer.opengl.utils.GraphicsRenderer.objectPosition.setTo(object.get_x(),object.get_y());
-	openfl._internal.renderer.opengl.utils.GraphicsRenderer.objectBounds.copyFrom(graphics.__bounds);
+	if(graphics.__bounds != null) openfl._internal.renderer.opengl.utils.GraphicsRenderer.objectBounds.copyFrom(graphics.__bounds);
 	var glStack = null;
 	if(graphics.__dirty) glStack = openfl._internal.renderer.opengl.utils.DrawPath.getStack(graphics,gl);
 	graphics.__dirty = false;
@@ -13923,6 +14190,7 @@ openfl._internal.renderer.opengl.utils.StencilManager.prototype = {
 	,__class__: openfl._internal.renderer.opengl.utils.StencilManager
 };
 openfl.display.Application = function() {
+	this.__mouseOutStack = [];
 	lime.app.Application.call(this);
 	openfl.Lib.application = this;
 };
@@ -14140,6 +14408,8 @@ openfl.display.Application.prototype = $extend(lime.app.Application.prototype,{
 		lime.app.Application.prototype.create.call(this,config);
 		this.stage = new openfl.display.Stage(this.windows[0].width,this.windows[0].height,config.background);
 		this.stage.addChild(openfl.Lib.current);
+		this.stage.align = openfl.display.StageAlign.TOP_LEFT;
+		this.stage.scaleMode = openfl.display.StageScaleMode.NO_SCALE;
 	}
 	,onKey: function(event) {
 		var stack = new Array();
@@ -14152,12 +14422,12 @@ openfl.display.Application.prototype = $extend(lime.app.Application.prototype,{
 	,onKeyDown: function(keyCode,modifier) {
 		var keyCode1 = this.convertKeyCode(keyCode);
 		var charCode = keyCode1;
-		this.onKey(new openfl.events.KeyboardEvent(openfl.events.KeyboardEvent.KEY_DOWN,true,false,charCode,keyCode1));
+		this.onKey(new openfl.events.KeyboardEvent(openfl.events.KeyboardEvent.KEY_DOWN,true,false,charCode,keyCode1,null,lime.ui._KeyModifier.KeyModifier_Impl_.get_ctrlKey(modifier),lime.ui._KeyModifier.KeyModifier_Impl_.get_altKey(modifier),lime.ui._KeyModifier.KeyModifier_Impl_.get_shiftKey(modifier),lime.ui._KeyModifier.KeyModifier_Impl_.get_metaKey(modifier)));
 	}
 	,onKeyUp: function(keyCode,modifier) {
 		var keyCode1 = this.convertKeyCode(keyCode);
 		var charCode = keyCode1;
-		this.onKey(new openfl.events.KeyboardEvent(openfl.events.KeyboardEvent.KEY_UP,true,false,charCode,keyCode1));
+		this.onKey(new openfl.events.KeyboardEvent(openfl.events.KeyboardEvent.KEY_UP,true,false,charCode,keyCode1,null,lime.ui._KeyModifier.KeyModifier_Impl_.get_ctrlKey(modifier),lime.ui._KeyModifier.KeyModifier_Impl_.get_altKey(modifier),lime.ui._KeyModifier.KeyModifier_Impl_.get_shiftKey(modifier),lime.ui._KeyModifier.KeyModifier_Impl_.get_metaKey(modifier)));
 	}
 	,onMouse: function(type,x,y,button) {
 		if(button > 2) return;
@@ -14198,7 +14468,36 @@ openfl.display.Application.prototype = $extend(lime.app.Application.prototype,{
 		if(js.Boot.__instanceof(target,openfl.display.Sprite)) {
 			var targetSprite = target;
 			if(targetSprite.buttonMode && targetSprite.useHandCursor) lime.ui.Mouse.set_cursor(lime.ui.MouseCursor.POINTER); else lime.ui.Mouse.set_cursor(lime.ui.MouseCursor.ARROW);
+		} else if(js.Boot.__instanceof(target,openfl.display.SimpleButton)) {
+			var targetButton = target;
+			if(targetButton.useHandCursor) lime.ui.Mouse.set_cursor(lime.ui.MouseCursor.POINTER); else lime.ui.Mouse.set_cursor(lime.ui.MouseCursor.ARROW);
+		} else if(js.Boot.__instanceof(target,openfl.text.TextField)) {
+			var targetTextField = target;
+			if(targetTextField.type == openfl.text.TextFieldType.INPUT) lime.ui.Mouse.set_cursor(lime.ui.MouseCursor.TEXT); else lime.ui.Mouse.set_cursor(lime.ui.MouseCursor.ARROW);
 		} else lime.ui.Mouse.set_cursor(lime.ui.MouseCursor.ARROW);
+		var _g = 0;
+		var _g1 = this.__mouseOutStack;
+		while(_g < _g1.length) {
+			var target1 = _g1[_g];
+			++_g;
+			if(HxOverrides.indexOf(stack,target1,0) == -1) {
+				HxOverrides.remove(this.__mouseOutStack,target1);
+				var localPoint = target1.globalToLocal(targetPoint);
+				target1.dispatchEvent(new openfl.events.MouseEvent(openfl.events.MouseEvent.MOUSE_OUT,false,false,localPoint.x,localPoint.y,target1));
+			}
+		}
+		var _g2 = 0;
+		while(_g2 < stack.length) {
+			var target2 = stack[_g2];
+			++_g2;
+			if(HxOverrides.indexOf(this.__mouseOutStack,target2,0) == -1) {
+				if(target2.hasEventListener(openfl.events.MouseEvent.MOUSE_OVER)) {
+					var localPoint1 = target2.globalToLocal(targetPoint);
+					target2.dispatchEvent(new openfl.events.MouseEvent(openfl.events.MouseEvent.MOUSE_OVER,false,false,localPoint1.x,localPoint1.y,target2));
+				}
+				if(target2.hasEventListener(openfl.events.MouseEvent.MOUSE_OUT)) this.__mouseOutStack.push(target2);
+			}
+		}
 		if(this.stage.__dragObject != null) this.stage.__drag(targetPoint);
 	}
 	,onMouseDown: function(x,y,button) {
@@ -15668,12 +15967,96 @@ openfl.display.Shape.prototype = $extend(openfl.display.DisplayObject.prototype,
 		if(!this.__renderable || this.__worldAlpha <= 0) return;
 		if(this.__graphics != null) openfl._internal.renderer.opengl.utils.GraphicsRenderer.render(this,renderSession);
 	}
+	,__renderMask: function(renderSession) {
+		if(this.__graphics != null) openfl._internal.renderer.canvas.CanvasGraphics.renderMask(this.__graphics,renderSession);
+	}
 	,get_graphics: function() {
 		if(this.__graphics == null) this.__graphics = new openfl.display.Graphics();
 		return this.__graphics;
 	}
 	,__class__: openfl.display.Shape
 	,__properties__: $extend(openfl.display.DisplayObject.prototype.__properties__,{get_graphics:"get_graphics"})
+});
+openfl.display.SimpleButton = function(upState,overState,downState,hitTestState) {
+	openfl.display.DisplayObjectContainer.call(this);
+	this.enabled = true;
+	this.trackAsMenu = false;
+	this.useHandCursor = true;
+	this.mouseChildren = false;
+	this.set_upState(upState != null?upState:this.__generateDefaultState());
+	this.set_overState(overState != null?overState:this.__generateDefaultState());
+	this.set_downState(downState != null?downState:this.__generateDefaultState());
+	this.set_hitTestState(hitTestState != null?hitTestState:this.__generateDefaultState());
+	this.set___currentState(this.upState);
+};
+$hxClasses["openfl.display.SimpleButton"] = openfl.display.SimpleButton;
+openfl.display.SimpleButton.__name__ = ["openfl","display","SimpleButton"];
+openfl.display.SimpleButton.__super__ = openfl.display.DisplayObjectContainer;
+openfl.display.SimpleButton.prototype = $extend(openfl.display.DisplayObjectContainer.prototype,{
+	switchState: function(state) {
+		if(this.__currentState != null && this.__currentState.parent == this) this.removeChild(this.__currentState);
+		if(state != null) this.addChild(state);
+	}
+	,__generateDefaultState: function() {
+		return new openfl.display.DisplayObject();
+	}
+	,set_downState: function(downState) {
+		if(this.downState != null && this.__currentState == this.downState) this.set___currentState(downState);
+		return this.downState = downState;
+	}
+	,set_hitTestState: function(hitTestState) {
+		if(hitTestState != this.hitTestState) {
+			if(this.hitTestState != null && this.hitTestState.parent == this) this.removeChild(this.hitTestState);
+			this.removeEventListener(openfl.events.MouseEvent.MOUSE_DOWN,$bind(this,this.__this_onMouseDown));
+			this.removeEventListener(openfl.events.MouseEvent.MOUSE_OUT,$bind(this,this.__this_onMouseOut));
+			this.removeEventListener(openfl.events.MouseEvent.MOUSE_OVER,$bind(this,this.__this_onMouseOver));
+			this.removeEventListener(openfl.events.MouseEvent.MOUSE_UP,$bind(this,this.__this_onMouseUp));
+			if(hitTestState != null) {
+				this.addEventListener(openfl.events.MouseEvent.MOUSE_DOWN,$bind(this,this.__this_onMouseDown));
+				this.addEventListener(openfl.events.MouseEvent.MOUSE_OUT,$bind(this,this.__this_onMouseOut));
+				this.addEventListener(openfl.events.MouseEvent.MOUSE_OVER,$bind(this,this.__this_onMouseOver));
+				this.addEventListener(openfl.events.MouseEvent.MOUSE_UP,$bind(this,this.__this_onMouseUp));
+				hitTestState.set_alpha(0.0);
+				this.addChild(hitTestState);
+			}
+		}
+		return this.hitTestState = hitTestState;
+	}
+	,set_overState: function(overState) {
+		if(this.overState != null && this.__currentState == this.overState) this.set___currentState(overState);
+		return this.overState = overState;
+	}
+	,get_soundTransform: function() {
+		if(this.__soundTransform == null) this.__soundTransform = new openfl.media.SoundTransform();
+		return new openfl.media.SoundTransform(this.__soundTransform.volume,this.__soundTransform.pan);
+	}
+	,set_soundTransform: function(value) {
+		this.__soundTransform = new openfl.media.SoundTransform(value.volume,value.pan);
+		return value;
+	}
+	,set_upState: function(upState) {
+		if(this.upState != null && this.__currentState == this.upState) this.set___currentState(upState);
+		return this.upState = upState;
+	}
+	,set___currentState: function(state) {
+		if(this.__currentState == state) return state;
+		this.switchState(state);
+		return this.__currentState = state;
+	}
+	,__this_onMouseDown: function(event) {
+		this.set___currentState(this.downState);
+	}
+	,__this_onMouseOut: function(event) {
+		if(this.upState != this.__currentState) this.set___currentState(this.upState);
+	}
+	,__this_onMouseOver: function(event) {
+		if(this.overState != this.__currentState) this.set___currentState(this.overState);
+	}
+	,__this_onMouseUp: function(event) {
+		this.set___currentState(this.overState);
+	}
+	,__class__: openfl.display.SimpleButton
+	,__properties__: $extend(openfl.display.DisplayObjectContainer.prototype.__properties__,{set___currentState:"set___currentState",set_upState:"set_upState",set_soundTransform:"set_soundTransform",get_soundTransform:"get_soundTransform",set_overState:"set_overState",set_hitTestState:"set_hitTestState",set_downState:"set_downState"})
 });
 openfl.display.SpreadMethod = $hxClasses["openfl.display.SpreadMethod"] = { __ename__ : true, __constructs__ : ["REPEAT","REFLECT","PAD"] };
 openfl.display.SpreadMethod.REPEAT = ["REPEAT",0];
@@ -16044,7 +16427,7 @@ openfl.display3D.Context3D = function() {
 	while(_g1 < _g) {
 		var i = _g1++;
 		this.samplerParameters[i] = new openfl.display3D._Context3D.SamplerState();
-		this.samplerParameters[i].wrap = openfl.display3D.Context3DWrapMode.REPEAT;
+		this.samplerParameters[i].wrap = openfl.display3D.Context3DWrapMode.CLAMP;
 		this.samplerParameters[i].filter = openfl.display3D.Context3DTextureFilter.LINEAR;
 		this.samplerParameters[i].mipfilter = openfl.display3D.Context3DMipFilter.MIPNONE;
 	}
@@ -16183,6 +16566,8 @@ openfl.display3D.Context3D.prototype = {
 		lime.graphics.opengl.GL.context.useProgram(null);
 		lime.graphics.opengl.GL.context.bindBuffer(34962,null);
 		lime.graphics.opengl.GL.context.disable(2884);
+		if(this.framebuffer != null) lime.graphics.opengl.GL.context.bindFramebuffer(36160,null);
+		if(this.renderbuffer != null) lime.graphics.opengl.GL.context.bindRenderbuffer(36161,null);
 	}
 	,removeRenderMethod: function(func) {
 		this.ogl.set_render(null);
@@ -16310,7 +16695,7 @@ openfl.display3D.Context3D.prototype = {
 			lime.graphics.opengl.GL.context.uniform1i(location,textureIndex);
 		} else throw "Texture of type " + Type.getClassName(Type.getClass(texture)) + " not supported yet";
 		var parameters = this.samplerParameters[textureIndex];
-		if(parameters != null) this.setTextureParameters(texture,parameters.wrap,parameters.filter,parameters.mipfilter); else this.setTextureParameters(texture,openfl.display3D.Context3DWrapMode.REPEAT,openfl.display3D.Context3DTextureFilter.NEAREST,openfl.display3D.Context3DMipFilter.MIPNONE);
+		if(parameters != null) this.setTextureParameters(texture,parameters.wrap,parameters.filter,parameters.mipfilter); else this.setTextureParameters(texture,openfl.display3D.Context3DWrapMode.CLAMP,openfl.display3D.Context3DTextureFilter.NEAREST,openfl.display3D.Context3DMipFilter.MIPNONE);
 	}
 	,setGLSLVertexBufferAt: function(locationName,buffer,bufferOffset,format) {
 		if(bufferOffset == null) bufferOffset = 0;
@@ -16394,7 +16779,11 @@ openfl.display3D.Context3D.prototype = {
 		});
 	}
 	,setRenderToBackBuffer: function() {
-		lime.graphics.opengl.GL.context.bindFramebuffer(36160,this.defaultFrameBuffer);
+		lime.graphics.opengl.GL.context.disable(2929);
+		lime.graphics.opengl.GL.context.disable(2960);
+		lime.graphics.opengl.GL.context.disable(3089);
+		if(this.framebuffer != null) lime.graphics.opengl.GL.context.bindFramebuffer(36160,null);
+		if(this.renderbuffer != null) lime.graphics.opengl.GL.context.bindRenderbuffer(36161,null);
 	}
 	,setRenderToTexture: function(texture,enableDepthAndStencil,antiAlias,surfaceSelector) {
 		if(surfaceSelector == null) surfaceSelector = 0;
@@ -16404,15 +16793,18 @@ openfl.display3D.Context3D.prototype = {
 		lime.graphics.opengl.GL.context.bindFramebuffer(36160,this.framebuffer);
 		if(this.renderbuffer == null) this.renderbuffer = lime.graphics.opengl.GL.context.createRenderbuffer();
 		lime.graphics.opengl.GL.context.bindRenderbuffer(36161,this.renderbuffer);
-		lime.graphics.opengl.GL.context.renderbufferStorage(36161,34041,texture.width,texture.height);
+		lime.graphics.opengl.GL.context.renderbufferStorage(36161,6408,texture.width,texture.height);
 		lime.graphics.opengl.GL.context.framebufferTexture2D(36160,36064,3553,texture.glTexture,0);
+		lime.graphics.opengl.GL.context.renderbufferStorage(36161,34041,texture.width,texture.height);
+		lime.graphics.opengl.GL.context.framebufferRenderbuffer(36160,33306,36161,this.renderbuffer);
 		if(enableDepthAndStencil) {
 			lime.graphics.opengl.GL.context.enable(2929);
 			lime.graphics.opengl.GL.context.enable(2960);
-			lime.graphics.opengl.GL.context.framebufferRenderbuffer(36160,33306,36161,this.renderbuffer);
 		}
 		lime.graphics.opengl.GL.context.bindTexture(3553,texture.glTexture);
 		lime.graphics.opengl.GL.context.texImage2D(3553,0,6408,texture.width,texture.height,0,6408,5121,null);
+		lime.graphics.opengl.GL.context.texParameteri(3553,10240,9729);
+		lime.graphics.opengl.GL.context.texParameteri(3553,10241,9985);
 		lime.graphics.opengl.GL.context.viewport(0,0,texture.width,texture.height);
 	}
 	,setSamplerStateAt: function(sampler,wrap,filter,mipfilter) {
@@ -16428,7 +16820,7 @@ openfl.display3D.Context3D.prototype = {
 			return;
 		}
 		lime.graphics.opengl.GL.context.enable(3089);
-		lime.graphics.opengl.GL.context.scissor(rectangle.x | 0,this.scrollRect.height - rectangle.y - rectangle.height | 0,rectangle.width | 0,rectangle.height | 0);
+		lime.graphics.opengl.GL.context.scissor(rectangle.x | 0,rectangle.y | 0,rectangle.width | 0,rectangle.height | 0);
 	}
 	,setStencilActions: function(triangleFace,compareMode,actionOnBothPass,actionOnDepthFail,actionOnDepthPassStencilFail) {
 		this.stencilCompareMode = compareMode;
@@ -17310,6 +17702,7 @@ openfl.events.FocusEvent.prototype = $extend(openfl.events.Event.prototype,{
 		var event = new openfl.events.FocusEvent(this.type,this.bubbles,this.cancelable,this.relatedObject,this.shiftKey,this.keyCode);
 		event.target = this.target;
 		event.currentTarget = this.currentTarget;
+		event.eventPhase = this.eventPhase;
 		return event;
 	}
 	,toString: function() {
@@ -20505,7 +20898,7 @@ openfl.geom.Orientation3D.QUATERNION = ["QUATERNION",2];
 openfl.geom.Orientation3D.QUATERNION.toString = $estr;
 openfl.geom.Orientation3D.QUATERNION.__enum__ = openfl.geom.Orientation3D;
 openfl.geom.Transform = function(displayObject) {
-	this.colorTransform = new openfl.geom.ColorTransform();
+	this.__colorTransform = new openfl.geom.ColorTransform();
 	this.concatenatedColorTransform = new openfl.geom.ColorTransform();
 	this.concatenatedMatrix = new openfl.geom.Matrix();
 	this.pixelBounds = new openfl.geom.Rectangle();
@@ -20515,7 +20908,15 @@ openfl.geom.Transform = function(displayObject) {
 $hxClasses["openfl.geom.Transform"] = openfl.geom.Transform;
 openfl.geom.Transform.__name__ = ["openfl","geom","Transform"];
 openfl.geom.Transform.prototype = {
-	get_matrix: function() {
+	get_colorTransform: function() {
+		return this.__colorTransform;
+	}
+	,set_colorTransform: function(value) {
+		this.__colorTransform = value;
+		if(value != null) this.__displayObject.set_alpha(value.alphaMultiplier);
+		return this.__colorTransform;
+	}
+	,get_matrix: function() {
 		if(this.__hasMatrix) {
 			var matrix = new openfl.geom.Matrix();
 			matrix.scale(this.__displayObject.get_scaleX(),this.__displayObject.get_scaleY());
@@ -20589,7 +20990,7 @@ openfl.geom.Transform.prototype = {
 		return value;
 	}
 	,__class__: openfl.geom.Transform
-	,__properties__: {set_matrix3D:"set_matrix3D",get_matrix3D:"get_matrix3D",set_matrix:"set_matrix",get_matrix:"get_matrix"}
+	,__properties__: {set_matrix3D:"set_matrix3D",get_matrix3D:"get_matrix3D",set_matrix:"set_matrix",get_matrix:"get_matrix",set_colorTransform:"set_colorTransform",get_colorTransform:"get_colorTransform"}
 };
 openfl.geom.Vector3D = function(x,y,z,w) {
 	if(w == null) w = 0;
@@ -20924,6 +21325,13 @@ openfl.system.SecurityDomain.prototype = {
 	__class__: openfl.system.SecurityDomain
 };
 openfl.text = {};
+openfl.text.AntiAliasType = $hxClasses["openfl.text.AntiAliasType"] = { __ename__ : true, __constructs__ : ["ADVANCED","NORMAL"] };
+openfl.text.AntiAliasType.ADVANCED = ["ADVANCED",0];
+openfl.text.AntiAliasType.ADVANCED.toString = $estr;
+openfl.text.AntiAliasType.ADVANCED.__enum__ = openfl.text.AntiAliasType;
+openfl.text.AntiAliasType.NORMAL = ["NORMAL",1];
+openfl.text.AntiAliasType.NORMAL.toString = $estr;
+openfl.text.AntiAliasType.NORMAL.__enum__ = openfl.text.AntiAliasType;
 openfl.text.Font = function(name) {
 	lime.graphics.Font.call(this,name);
 };
@@ -20974,6 +21382,669 @@ openfl.text.FontType.EMBEDDED.__enum__ = openfl.text.FontType;
 openfl.text.FontType.EMBEDDED_CFF = ["EMBEDDED_CFF",2];
 openfl.text.FontType.EMBEDDED_CFF.toString = $estr;
 openfl.text.FontType.EMBEDDED_CFF.__enum__ = openfl.text.FontType;
+openfl.text.GridFitType = $hxClasses["openfl.text.GridFitType"] = { __ename__ : true, __constructs__ : ["NONE","PIXEL","SUBPIXEL"] };
+openfl.text.GridFitType.NONE = ["NONE",0];
+openfl.text.GridFitType.NONE.toString = $estr;
+openfl.text.GridFitType.NONE.__enum__ = openfl.text.GridFitType;
+openfl.text.GridFitType.PIXEL = ["PIXEL",1];
+openfl.text.GridFitType.PIXEL.toString = $estr;
+openfl.text.GridFitType.PIXEL.__enum__ = openfl.text.GridFitType;
+openfl.text.GridFitType.SUBPIXEL = ["SUBPIXEL",2];
+openfl.text.GridFitType.SUBPIXEL.toString = $estr;
+openfl.text.GridFitType.SUBPIXEL.__enum__ = openfl.text.GridFitType;
+openfl.text.TextField = function() {
+	openfl.display.InteractiveObject.call(this);
+	this.__width = 100;
+	this.__height = 100;
+	this.__text = "";
+	this.set_type(openfl.text.TextFieldType.DYNAMIC);
+	this.set_autoSize(openfl.text.TextFieldAutoSize.NONE);
+	this.displayAsPassword = false;
+	this.embedFonts = false;
+	this.selectable = true;
+	this.set_borderColor(0);
+	this.set_border(false);
+	this.set_backgroundColor(16777215);
+	this.set_background(false);
+	this.gridFitType = openfl.text.GridFitType.PIXEL;
+	this.maxChars = 0;
+	this.multiline = false;
+	this.sharpness = 0;
+	this.scrollH = 0;
+	this.scrollV = 1;
+	this.set_wordWrap(false);
+	if(openfl.text.TextField.__defaultTextFormat == null) {
+		openfl.text.TextField.__defaultTextFormat = new openfl.text.TextFormat("Times New Roman",12,0,false,false,false,"","",openfl.text.TextFormatAlign.LEFT,0,0,0,0);
+		openfl.text.TextField.__defaultTextFormat.blockIndent = 0;
+		openfl.text.TextField.__defaultTextFormat.bullet = false;
+		openfl.text.TextField.__defaultTextFormat.letterSpacing = 0;
+		openfl.text.TextField.__defaultTextFormat.kerning = false;
+	}
+	this.__textFormat = openfl.text.TextField.__defaultTextFormat.clone();
+};
+$hxClasses["openfl.text.TextField"] = openfl.text.TextField;
+openfl.text.TextField.__name__ = ["openfl","text","TextField"];
+openfl.text.TextField.__defaultTextFormat = null;
+openfl.text.TextField.__super__ = openfl.display.InteractiveObject;
+openfl.text.TextField.prototype = $extend(openfl.display.InteractiveObject.prototype,{
+	appendText: function(text) {
+		var _g = this;
+		_g.set_text(_g.get_text() + text);
+	}
+	,getCharBoundaries: function(a) {
+		openfl.Lib.notImplemented("TextField.getCharBoundaries");
+		return null;
+	}
+	,getCharIndexAtPoint: function(x,y) {
+		openfl.Lib.notImplemented("TextField.getCharIndexAtPoint");
+		return 0;
+	}
+	,getLineIndexAtPoint: function(x,y) {
+		openfl.Lib.notImplemented("TextField.getLineIndexAtPoint");
+		return 0;
+	}
+	,getLineMetrics: function(lineIndex) {
+		openfl.Lib.notImplemented("TextField.getLineMetrics");
+		return new openfl.text.TextLineMetrics(0,0,0,0,0,0);
+	}
+	,getLineOffset: function(lineIndex) {
+		openfl.Lib.notImplemented("TextField.getLineOffset");
+		return 0;
+	}
+	,getLineText: function(lineIndex) {
+		openfl.Lib.notImplemented("TextField.getLineText");
+		return "";
+	}
+	,getTextFormat: function(beginIndex,endIndex) {
+		if(endIndex == null) endIndex = 0;
+		if(beginIndex == null) beginIndex = 0;
+		return this.__textFormat.clone();
+	}
+	,setSelection: function(beginIndex,endIndex) {
+		openfl.Lib.notImplemented("TextField.setSelection");
+	}
+	,setTextFormat: function(format,beginIndex,endIndex) {
+		if(endIndex == null) endIndex = 0;
+		if(beginIndex == null) beginIndex = 0;
+		if(format.font != null) this.__textFormat.font = format.font;
+		if(format.size != null) this.__textFormat.size = format.size;
+		if(format.color != null) this.__textFormat.color = format.color;
+		if(format.bold != null) this.__textFormat.bold = format.bold;
+		if(format.italic != null) this.__textFormat.italic = format.italic;
+		if(format.underline != null) this.__textFormat.underline = format.underline;
+		if(format.url != null) this.__textFormat.url = format.url;
+		if(format.target != null) this.__textFormat.target = format.target;
+		if(format.align != null) this.__textFormat.align = format.align;
+		if(format.leftMargin != null) this.__textFormat.leftMargin = format.leftMargin;
+		if(format.rightMargin != null) this.__textFormat.rightMargin = format.rightMargin;
+		if(format.indent != null) this.__textFormat.indent = format.indent;
+		if(format.leading != null) this.__textFormat.leading = format.leading;
+		if(format.blockIndent != null) this.__textFormat.blockIndent = format.blockIndent;
+		if(format.bullet != null) this.__textFormat.bullet = format.bullet;
+		if(format.kerning != null) this.__textFormat.kerning = format.kerning;
+		if(format.letterSpacing != null) this.__textFormat.letterSpacing = format.letterSpacing;
+		if(format.tabStops != null) this.__textFormat.tabStops = format.tabStops;
+		this.__dirty = true;
+	}
+	,__clipText: function(value) {
+		var textWidth = this.__getTextWidth(value);
+		var fillPer = textWidth / this.__width;
+		this.set_text(fillPer > 1?(function($this) {
+			var $r;
+			var _this = $this.get_text();
+			var pos = -1 * Math.floor($this.get_text().length / fillPer);
+			$r = HxOverrides.substr(_this,pos,null);
+			return $r;
+		}(this)):this.get_text());
+		return this.get_text() + "";
+	}
+	,__disableInputMode: function() {
+		this.this_onRemovedFromStage(null);
+	}
+	,__enableInputMode: function() {
+		this.__cursorPosition = -1;
+		if(this.__hiddenInput == null) {
+			this.__hiddenInput = window.document.createElement("input");
+			this.__hiddenInput.type = "text";
+			this.__hiddenInput.style.position = "absolute";
+			this.__hiddenInput.style.opacity = "0";
+			this.__hiddenInput.style.pointerEvents = "none";
+			this.__hiddenInput.style.left = this.get_x() + (this.__canvas != null?this.__canvas.offsetLeft:0) + "px";
+			this.__hiddenInput.style.top = this.get_y() + (this.__canvas != null?this.__canvas.offsetTop:0) + "px";
+			this.__hiddenInput.style.width = this.__width + "px";
+			this.__hiddenInput.style.height = this.__height + "px";
+			this.__hiddenInput.style.zIndex = "0";
+			if(this.maxChars > 0) this.__hiddenInput.maxLength = this.maxChars;
+			window.document.body.appendChild(this.__hiddenInput);
+			this.__hiddenInput.value = this.__text;
+		}
+		if(this.stage != null) this.this_onAddedToStage(null); else {
+			this.addEventListener(openfl.events.Event.ADDED_TO_STAGE,$bind(this,this.this_onAddedToStage));
+			this.addEventListener(openfl.events.Event.REMOVED_FROM_STAGE,$bind(this,this.this_onRemovedFromStage));
+		}
+	}
+	,__getBounds: function(rect,matrix) {
+		var bounds = new openfl.geom.Rectangle(0,0,this.__width,this.__height);
+		bounds.transform(this.__worldTransform);
+		rect.__expand(bounds.x,bounds.y,bounds.width,bounds.height);
+	}
+	,__getFont: function(format) {
+		var font;
+		if(format.italic) font = "italic "; else font = "normal ";
+		font += "normal ";
+		if(format.bold) font += "bold "; else font += "normal ";
+		font += format.size + "px";
+		font += "/" + (format.size + format.leading + 4) + "px ";
+		font += "'" + (function($this) {
+			var $r;
+			var _g = format.font;
+			$r = (function($this) {
+				var $r;
+				switch(_g) {
+				case "_sans":
+					$r = "sans-serif";
+					break;
+				case "_serif":
+					$r = "serif";
+					break;
+				case "_typewriter":
+					$r = "monospace";
+					break;
+				default:
+					$r = format.font;
+				}
+				return $r;
+			}($this));
+			return $r;
+		}(this));
+		font += "'";
+		return font;
+	}
+	,__getPosition: function(x,y) {
+		var value = this.get_text();
+		var text = value;
+		var totalW = 0;
+		var pos = text.length;
+		if(x < this.__getTextWidth(text)) {
+			var _g1 = 0;
+			var _g = text.length;
+			while(_g1 < _g) {
+				var i = _g1++;
+				totalW += this.__getTextWidth(text.charAt(i));
+				if(totalW >= x) {
+					pos = i;
+					break;
+				}
+			}
+		}
+		return pos;
+	}
+	,__getTextWidth: function(text) {
+		if(this.__context == null) {
+			this.__canvas = window.document.createElement("canvas");
+			this.__context = this.__canvas.getContext("2d");
+		}
+		this.__context.font = this.__getFont(this.__textFormat);
+		this.__context.textAlign = "left";
+		return this.__context.measureText(text).width;
+	}
+	,__hitTest: function(x,y,shapeFlag,stack,interactiveOnly) {
+		if(!this.get_visible() || interactiveOnly && !this.mouseEnabled) return false;
+		var point = this.globalToLocal(new openfl.geom.Point(x,y));
+		if(point.x > 0 && point.y > 0 && point.x <= this.__width && point.y <= this.__height) {
+			if(stack != null) stack.push(this);
+			return true;
+		}
+		return false;
+	}
+	,__measureText: function() {
+		if(this.__ranges == null) {
+			this.__context.font = this.__getFont(this.__textFormat);
+			return [this.__context.measureText(this.__text).width];
+		} else {
+			var measurements = [];
+			var _g = 0;
+			var _g1 = this.__ranges;
+			while(_g < _g1.length) {
+				var range = _g1[_g];
+				++_g;
+				this.__context.font = this.__getFont(range.format);
+				measurements.push(this.__context.measureText(this.get_text().substring(range.start,range.end)).width);
+			}
+			return measurements;
+		}
+	}
+	,__measureTextWithDOM: function() {
+		var div = this.__div;
+		if(this.__div == null) {
+			div = window.document.createElement("div");
+			div.innerHTML = new EReg("\n","g").replace(this.__text,"<br>");
+			div.style.setProperty("font",this.__getFont(this.__textFormat),null);
+			div.style.position = "absolute";
+			div.style.top = "110%";
+			window.document.body.appendChild(div);
+		}
+		this.__measuredWidth = div.clientWidth;
+		if(this.__div == null) div.style.width = Std.string(this.__width) + "px";
+		this.__measuredHeight = div.clientHeight;
+		if(this.__div == null) window.document.body.removeChild(div);
+	}
+	,__renderCanvas: function(renderSession) {
+		openfl._internal.renderer.canvas.CanvasTextField.render(this,renderSession);
+	}
+	,__renderDOM: function(renderSession) {
+		openfl._internal.renderer.dom.DOMTextField.render(this,renderSession);
+	}
+	,__renderGL: function(renderSession) {
+		openfl._internal.renderer.opengl.GLTextField.render(this,renderSession);
+	}
+	,__startCursorTimer: function() {
+		this.__cursorTimer = haxe.Timer.delay($bind(this,this.__startCursorTimer),500);
+		this.__showCursor = !this.__showCursor;
+		this.__dirty = true;
+	}
+	,__stopCursorTimer: function() {
+		if(this.__cursorTimer != null) this.__cursorTimer.stop();
+	}
+	,input_onKeyUp: function(event) {
+		this.__isKeyDown = false;
+		if(event == null) event == window.event;
+		this.__text = this.__hiddenInput.value;
+		this.__ranges = null;
+		this.__isHTML = false;
+		this.__cursorPosition = this.__hiddenInput.selectionStart;
+		this.__selectionStart = this.__cursorPosition;
+		this.__dirty = true;
+		this.dispatchEvent(new openfl.events.Event(openfl.events.Event.CHANGE,true));
+	}
+	,input_onKeyDown: function(event) {
+		this.__isKeyDown = true;
+		if(event == null) event == window.event;
+		var keyCode = event.which;
+		var isShift = event.shiftKey;
+		if(keyCode == 65 && (event.ctrlKey || event.metaKey)) {
+			this.__hiddenInput.selectionStart = 0;
+			this.__hiddenInput.selectionEnd = this.get_text().length;
+			event.preventDefault();
+			this.__dirty = true;
+			return;
+		}
+		if(keyCode == 17 || event.metaKey || event.ctrlKey) return;
+		this.__text = this.__hiddenInput.value;
+		this.__ranges = null;
+		this.__isHTML = false;
+		this.__selectionStart = this.__hiddenInput.selectionStart;
+		this.__dirty = true;
+	}
+	,stage_onFocusOut: function(event) {
+		this.__cursorPosition = -1;
+		this.__hasFocus = false;
+		this.__stopCursorTimer();
+		this.__hiddenInput.blur();
+		this.__dirty = true;
+	}
+	,stage_onMouseMove: function(event) {
+		if(this.__hasFocus && this.__selectionStart >= 0) {
+			this.__cursorPosition = this.__getPosition(event.localX,event.localY);
+			this.__dirty = true;
+		}
+	}
+	,stage_onMouseUp: function(event) {
+		var upPos = this.__getPosition(event.localX,event.localY);
+		var leftPos;
+		var rightPos;
+		leftPos = Std["int"](Math.min(this.__selectionStart,upPos));
+		rightPos = Std["int"](Math.max(this.__selectionStart,upPos));
+		this.__selectionStart = leftPos;
+		this.__cursorPosition = rightPos;
+		this.stage.removeEventListener(openfl.events.MouseEvent.MOUSE_MOVE,$bind(this,this.stage_onMouseMove));
+		this.stage.addEventListener(openfl.events.MouseEvent.MOUSE_UP,$bind(this,this.stage_onMouseUp));
+		this.stage.set_focus(this);
+		if(this.__cursorPosition < 0) {
+			this.__cursorPosition = this.__text.length;
+			this.__selectionStart = this.__cursorPosition;
+		}
+		this.__hiddenInput.focus();
+		this.__hiddenInput.selectionStart = this.__selectionStart;
+		this.__hiddenInput.selectionEnd = this.__cursorPosition;
+		this.__stopCursorTimer();
+		this.__startCursorTimer();
+		this.__hasFocus = true;
+		this.__dirty = true;
+	}
+	,this_onAddedToStage: function(event) {
+		this.stage.addEventListener(openfl.events.FocusEvent.FOCUS_OUT,$bind(this,this.stage_onFocusOut));
+		this.__hiddenInput.addEventListener("keydown",$bind(this,this.input_onKeyDown));
+		this.__hiddenInput.addEventListener("keyup",$bind(this,this.input_onKeyUp));
+		this.__hiddenInput.addEventListener("input",$bind(this,this.input_onKeyUp));
+		this.addEventListener(openfl.events.MouseEvent.MOUSE_DOWN,$bind(this,this.this_onMouseDown));
+	}
+	,this_onMouseDown: function(event) {
+		this.__selectionStart = this.__getPosition(event.localX,event.localY);
+		this.stage.addEventListener(openfl.events.MouseEvent.MOUSE_MOVE,$bind(this,this.stage_onMouseMove));
+		this.stage.addEventListener(openfl.events.MouseEvent.MOUSE_UP,$bind(this,this.stage_onMouseUp));
+	}
+	,this_onRemovedFromStage: function(event) {
+		if(this.stage != null) this.stage.removeEventListener(openfl.events.FocusEvent.FOCUS_OUT,$bind(this,this.stage_onFocusOut));
+		if(this.__hiddenInput != null) this.__hiddenInput.removeEventListener("keydown",$bind(this,this.input_onKeyDown));
+		if(this.__hiddenInput != null) this.__hiddenInput.removeEventListener("keyup",$bind(this,this.input_onKeyUp));
+		if(this.__hiddenInput != null) this.__hiddenInput.removeEventListener("input",$bind(this,this.input_onKeyUp));
+		this.removeEventListener(openfl.events.MouseEvent.MOUSE_DOWN,$bind(this,this.this_onMouseDown));
+		if(this.stage != null) this.stage.removeEventListener(openfl.events.MouseEvent.MOUSE_MOVE,$bind(this,this.stage_onMouseMove));
+		if(this.stage != null) this.stage.removeEventListener(openfl.events.MouseEvent.MOUSE_UP,$bind(this,this.stage_onMouseUp));
+	}
+	,set_autoSize: function(value) {
+		if(value != this.autoSize) this.__dirty = true;
+		return this.autoSize = value;
+	}
+	,set_background: function(value) {
+		if(value != this.background) this.__dirty = true;
+		return this.background = value;
+	}
+	,set_backgroundColor: function(value) {
+		if(value != this.backgroundColor) this.__dirty = true;
+		return this.backgroundColor = value;
+	}
+	,set_border: function(value) {
+		if(value != this.border) this.__dirty = true;
+		return this.border = value;
+	}
+	,set_borderColor: function(value) {
+		if(value != this.borderColor) this.__dirty = true;
+		return this.borderColor = value;
+	}
+	,get_bottomScrollV: function() {
+		return this.get_numLines();
+	}
+	,get_caretPos: function() {
+		return 0;
+	}
+	,get_defaultTextFormat: function() {
+		return this.__textFormat.clone();
+	}
+	,set_defaultTextFormat: function(value) {
+		this.__textFormat.__merge(value);
+		return value;
+	}
+	,get_height: function() {
+		return this.__height * this.get_scaleY();
+	}
+	,set_height: function(value) {
+		if(this.get_scaleY() != 1 || value != this.__height) {
+			if(!this.__transformDirty) {
+				this.__transformDirty = true;
+				openfl.display.DisplayObject.__worldTransformDirty++;
+			}
+			this.__dirty = true;
+		}
+		this.set_scaleY(1);
+		return this.__height = value;
+	}
+	,get_htmlText: function() {
+		return this.__text;
+	}
+	,set_htmlText: function(value) {
+		if(!this.__isHTML || this.__text != value) this.__dirty = true;
+		this.__ranges = null;
+		this.__isHTML = true;
+		if(this.__div == null) {
+			value = new EReg("<br>","g").replace(value,"\n");
+			value = new EReg("<br/>","g").replace(value,"\n");
+			var segments = value.split("<font");
+			if(segments.length == 1) {
+				value = new EReg("<.*?>","g").replace(value,"");
+				if(this.__hiddenInput != null) this.__hiddenInput.value = value;
+				return this.__text = value;
+			} else {
+				value = "";
+				this.__ranges = [];
+				var _g = 0;
+				while(_g < segments.length) {
+					var segment = segments[_g];
+					++_g;
+					if(segment == "") continue;
+					var closeFontIndex = segment.indexOf("</font>");
+					if(closeFontIndex > -1) {
+						var start = segment.indexOf(">") + 1;
+						var end = closeFontIndex;
+						var format = this.__textFormat.clone();
+						var faceIndex = segment.indexOf("face=");
+						var colorIndex = segment.indexOf("color=");
+						var sizeIndex = segment.indexOf("size=");
+						if(faceIndex > -1 && faceIndex < start) {
+							var len = segment.indexOf("\"",faceIndex);
+							format.font = HxOverrides.substr(segment,faceIndex + 6,len);
+						}
+						if(colorIndex > -1 && colorIndex < start) format.color = Std.parseInt("0x" + HxOverrides.substr(segment,colorIndex + 8,6));
+						if(sizeIndex > -1 && sizeIndex < start) format.size = Std.parseInt((function($this) {
+							var $r;
+							var len1 = segment.indexOf("\"",sizeIndex);
+							$r = HxOverrides.substr(segment,sizeIndex + 6,len1);
+							return $r;
+						}(this)));
+						var sub = segment.substring(start,end);
+						sub = new EReg("<.*?>","g").replace(sub,"");
+						this.__ranges.push(new openfl.text.TextFormatRange(format,value.length,value.length + sub.length));
+						value += sub;
+						if(closeFontIndex + 7 < segment.length) {
+							sub = HxOverrides.substr(segment,closeFontIndex + 7,null);
+							this.__ranges.push(new openfl.text.TextFormatRange(this.__textFormat,value.length,value.length + sub.length));
+							value += sub;
+						}
+					} else {
+						this.__ranges.push(new openfl.text.TextFormatRange(this.__textFormat,value.length,value.length + segment.length));
+						value += segment;
+					}
+				}
+			}
+		}
+		if(this.__hiddenInput != null) this.__hiddenInput.value = value;
+		return this.__text = value;
+	}
+	,get_maxScrollH: function() {
+		return 0;
+	}
+	,get_maxScrollV: function() {
+		return 1;
+	}
+	,get_numLines: function() {
+		if(this.get_text() != "" && this.get_text() != null) {
+			var count = this.get_text().split("\n").length;
+			if(this.__isHTML) count += this.get_text().split("<br>").length - 1;
+			return count;
+		}
+		return 1;
+	}
+	,get_text: function() {
+		if(this.__isHTML) {
+		}
+		return this.__text;
+	}
+	,set_text: function(value) {
+		if(this.__text != value && this.__hiddenInput != null) this.__hiddenInput.value = value;
+		if(this.__isHTML || this.__text != value) this.__dirty = true;
+		this.__ranges = null;
+		this.__isHTML = false;
+		return this.__text = value;
+	}
+	,get_textColor: function() {
+		return this.__textFormat.color;
+	}
+	,set_textColor: function(value) {
+		if(value != this.__textFormat.color) this.__dirty = true;
+		if(this.__ranges != null) {
+			var _g = 0;
+			var _g1 = this.__ranges;
+			while(_g < _g1.length) {
+				var range = _g1[_g];
+				++_g;
+				range.format.color = value;
+			}
+		}
+		return this.__textFormat.color = value;
+	}
+	,get_textWidth: function() {
+		if(this.__canvas != null) {
+			var sizes = this.__measureText();
+			var total = 0;
+			var _g = 0;
+			while(_g < sizes.length) {
+				var size = sizes[_g];
+				++_g;
+				total += size;
+			}
+			return total;
+		} else if(this.__div != null) return this.__div.clientWidth; else {
+			this.__measureTextWithDOM();
+			return this.__measuredWidth;
+		}
+	}
+	,get_textHeight: function() {
+		if(this.__canvas != null) return this.__textFormat.size * 1.185; else if(this.__div != null) return this.__div.clientHeight; else {
+			this.__measureTextWithDOM();
+			return this.__measuredHeight + this.__textFormat.size * 0.185;
+		}
+	}
+	,set_type: function(value) {
+		if(value != this.type) {
+			if(value == openfl.text.TextFieldType.INPUT) this.__enableInputMode(); else this.__disableInputMode();
+			this.__dirty = true;
+		}
+		return this.type = value;
+	}
+	,get_width: function() {
+		if(this.autoSize == openfl.text.TextFieldAutoSize.LEFT) return (this.get_textWidth() + 4) * this.get_scaleX(); else return this.__width * this.get_scaleX();
+	}
+	,set_width: function(value) {
+		if(this.get_scaleX() != 1 || this.__width != value) {
+			if(!this.__transformDirty) {
+				this.__transformDirty = true;
+				openfl.display.DisplayObject.__worldTransformDirty++;
+			}
+			this.__dirty = true;
+		}
+		this.set_scaleX(1);
+		return this.__width = value;
+	}
+	,get_wordWrap: function() {
+		return this.wordWrap;
+	}
+	,set_wordWrap: function(value) {
+		return this.wordWrap = value;
+	}
+	,__class__: openfl.text.TextField
+	,__properties__: $extend(openfl.display.InteractiveObject.prototype.__properties__,{set_wordWrap:"set_wordWrap",get_wordWrap:"get_wordWrap",set_type:"set_type",get_textWidth:"get_textWidth",get_textHeight:"get_textHeight",set_textColor:"set_textColor",get_textColor:"get_textColor",set_text:"set_text",get_text:"get_text",get_numLines:"get_numLines",get_maxScrollV:"get_maxScrollV",get_maxScrollH:"get_maxScrollH",set_htmlText:"set_htmlText",get_htmlText:"get_htmlText",set_defaultTextFormat:"set_defaultTextFormat",get_defaultTextFormat:"get_defaultTextFormat",get_caretPos:"get_caretPos",get_bottomScrollV:"get_bottomScrollV",set_borderColor:"set_borderColor",set_border:"set_border",set_backgroundColor:"set_backgroundColor",set_background:"set_background",set_autoSize:"set_autoSize"})
+});
+openfl.text.TextFormatRange = function(format,start,end) {
+	this.format = format;
+	this.start = start;
+	this.end = end;
+};
+$hxClasses["openfl.text.TextFormatRange"] = openfl.text.TextFormatRange;
+openfl.text.TextFormatRange.__name__ = ["openfl","text","TextFormatRange"];
+openfl.text.TextFormatRange.prototype = {
+	__class__: openfl.text.TextFormatRange
+};
+openfl.text.TextFieldAutoSize = $hxClasses["openfl.text.TextFieldAutoSize"] = { __ename__ : true, __constructs__ : ["CENTER","LEFT","NONE","RIGHT"] };
+openfl.text.TextFieldAutoSize.CENTER = ["CENTER",0];
+openfl.text.TextFieldAutoSize.CENTER.toString = $estr;
+openfl.text.TextFieldAutoSize.CENTER.__enum__ = openfl.text.TextFieldAutoSize;
+openfl.text.TextFieldAutoSize.LEFT = ["LEFT",1];
+openfl.text.TextFieldAutoSize.LEFT.toString = $estr;
+openfl.text.TextFieldAutoSize.LEFT.__enum__ = openfl.text.TextFieldAutoSize;
+openfl.text.TextFieldAutoSize.NONE = ["NONE",2];
+openfl.text.TextFieldAutoSize.NONE.toString = $estr;
+openfl.text.TextFieldAutoSize.NONE.__enum__ = openfl.text.TextFieldAutoSize;
+openfl.text.TextFieldAutoSize.RIGHT = ["RIGHT",3];
+openfl.text.TextFieldAutoSize.RIGHT.toString = $estr;
+openfl.text.TextFieldAutoSize.RIGHT.__enum__ = openfl.text.TextFieldAutoSize;
+openfl.text.TextFieldType = $hxClasses["openfl.text.TextFieldType"] = { __ename__ : true, __constructs__ : ["DYNAMIC","INPUT"] };
+openfl.text.TextFieldType.DYNAMIC = ["DYNAMIC",0];
+openfl.text.TextFieldType.DYNAMIC.toString = $estr;
+openfl.text.TextFieldType.DYNAMIC.__enum__ = openfl.text.TextFieldType;
+openfl.text.TextFieldType.INPUT = ["INPUT",1];
+openfl.text.TextFieldType.INPUT.toString = $estr;
+openfl.text.TextFieldType.INPUT.__enum__ = openfl.text.TextFieldType;
+openfl.text.TextFormat = function(font,size,color,bold,italic,underline,url,target,align,leftMargin,rightMargin,indent,leading) {
+	this.font = font;
+	this.size = size;
+	this.color = color;
+	this.bold = bold;
+	this.italic = italic;
+	this.underline = underline;
+	this.url = url;
+	this.target = target;
+	this.align = align;
+	this.leftMargin = leftMargin;
+	this.rightMargin = rightMargin;
+	this.indent = indent;
+	this.leading = leading;
+};
+$hxClasses["openfl.text.TextFormat"] = openfl.text.TextFormat;
+openfl.text.TextFormat.__name__ = ["openfl","text","TextFormat"];
+openfl.text.TextFormat.prototype = {
+	clone: function() {
+		var newFormat = new openfl.text.TextFormat(this.font,this.size,this.color,this.bold,this.italic,this.underline,this.url,this.target);
+		newFormat.align = this.align;
+		newFormat.leftMargin = this.leftMargin;
+		newFormat.rightMargin = this.rightMargin;
+		newFormat.indent = this.indent;
+		newFormat.leading = this.leading;
+		newFormat.blockIndent = this.blockIndent;
+		newFormat.bullet = this.bullet;
+		newFormat.kerning = this.kerning;
+		newFormat.letterSpacing = this.letterSpacing;
+		newFormat.tabStops = this.tabStops;
+		return newFormat;
+	}
+	,__merge: function(format) {
+		if(format.font != null) this.font = format.font;
+		if(format.size != null) this.size = format.size;
+		if(format.color != null) this.color = format.color;
+		if(format.bold != null) this.bold = format.bold;
+		if(format.italic != null) this.italic = format.italic;
+		if(format.underline != null) this.underline = format.underline;
+		if(format.url != null) this.url = format.url;
+		if(format.target != null) this.target = format.target;
+		if(format.align != null) this.align = format.align;
+		if(format.leftMargin != null) this.leftMargin = format.leftMargin;
+		if(format.rightMargin != null) this.rightMargin = format.rightMargin;
+		if(format.indent != null) this.indent = format.indent;
+		if(format.leading != null) this.leading = format.leading;
+		if(format.blockIndent != null) this.blockIndent = format.blockIndent;
+		if(format.bullet != null) this.bullet = format.bullet;
+		if(format.kerning != null) this.kerning = format.kerning;
+		if(format.letterSpacing != null) this.letterSpacing = format.letterSpacing;
+		if(format.tabStops != null) this.tabStops = format.tabStops;
+	}
+	,__class__: openfl.text.TextFormat
+};
+openfl.text.TextFormatAlign = $hxClasses["openfl.text.TextFormatAlign"] = { __ename__ : true, __constructs__ : ["LEFT","RIGHT","JUSTIFY","CENTER"] };
+openfl.text.TextFormatAlign.LEFT = ["LEFT",0];
+openfl.text.TextFormatAlign.LEFT.toString = $estr;
+openfl.text.TextFormatAlign.LEFT.__enum__ = openfl.text.TextFormatAlign;
+openfl.text.TextFormatAlign.RIGHT = ["RIGHT",1];
+openfl.text.TextFormatAlign.RIGHT.toString = $estr;
+openfl.text.TextFormatAlign.RIGHT.__enum__ = openfl.text.TextFormatAlign;
+openfl.text.TextFormatAlign.JUSTIFY = ["JUSTIFY",2];
+openfl.text.TextFormatAlign.JUSTIFY.toString = $estr;
+openfl.text.TextFormatAlign.JUSTIFY.__enum__ = openfl.text.TextFormatAlign;
+openfl.text.TextFormatAlign.CENTER = ["CENTER",3];
+openfl.text.TextFormatAlign.CENTER.toString = $estr;
+openfl.text.TextFormatAlign.CENTER.__enum__ = openfl.text.TextFormatAlign;
+openfl.text.TextLineMetrics = function(x,width,height,ascent,descent,leading) {
+	this.x = x;
+	this.width = width;
+	this.height = height;
+	this.ascent = ascent;
+	this.descent = descent;
+	this.leading = leading;
+};
+$hxClasses["openfl.text.TextLineMetrics"] = openfl.text.TextLineMetrics;
+openfl.text.TextLineMetrics.__name__ = ["openfl","text","TextLineMetrics"];
+openfl.text.TextLineMetrics.prototype = {
+	__class__: openfl.text.TextLineMetrics
+};
 openfl.ui = {};
 openfl.ui._KeyLocation = {};
 openfl.ui._KeyLocation.KeyLocation_Impl_ = function() { };
@@ -21138,7 +22209,7 @@ openfl.display.DisplayObject.__instanceCount = 0;
 openfl.display.DisplayObject.__worldRenderDirty = 0;
 openfl.display.DisplayObject.__worldTransformDirty = 0;
 js.Boot.__toStr = {}.toString;
-lets.Go.version = "0.0.4-g";
+lets.Go.version = "0.0.5-a";
 lets.Go._tweens = new Array();
 lets.Go.id = -1;
 lets.Go.DEBUG = false;
@@ -21152,7 +22223,6 @@ lime._Assets.AssetType_Impl_.MUSIC = "MUSIC";
 lime._Assets.AssetType_Impl_.SOUND = "SOUND";
 lime._Assets.AssetType_Impl_.TEMPLATE = "TEMPLATE";
 lime._Assets.AssetType_Impl_.TEXT = "TEXT";
-lime.app.Application.onUpdate = new lime.app.Event();
 lime.app.Preloader.images = new haxe.ds.StringMap();
 lime.app.Preloader.loaders = new haxe.ds.StringMap();
 lime.audio.openal.AL.NONE = 0;
@@ -21239,9 +22309,6 @@ lime.audio.openal.ALC.ENUMERATE_ALL_EXT = 1;
 lime.audio.openal.ALC.DEFAULT_ALL_DEVICES_SPECIFIER = 4114;
 lime.audio.openal.ALC.ALL_DEVICES_SPECIFIER = 4115;
 lime.graphics.Image.__base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-lime.graphics.Renderer.onRenderContextLost = new lime.app.Event();
-lime.graphics.Renderer.onRenderContextRestored = new lime.app.Event();
-lime.graphics.Renderer.onRender = new lime.app.Event();
 lime.graphics.opengl.GL.DEPTH_BUFFER_BIT = 256;
 lime.graphics.opengl.GL.STENCIL_BUFFER_BIT = 1024;
 lime.graphics.opengl.GL.COLOR_BUFFER_BIT = 16384;
@@ -21548,349 +22615,8 @@ lime.net._URLRequestMethod.URLRequestMethod_Impl_.HEAD = "HEAD";
 lime.net._URLRequestMethod.URLRequestMethod_Impl_.OPTIONS = "OPTIONS";
 lime.net._URLRequestMethod.URLRequestMethod_Impl_.POST = "POST";
 lime.net._URLRequestMethod.URLRequestMethod_Impl_.PUT = "PUT";
-lime.net.curl._CURL.CURL_Impl_.GLOBAL_SSL = 1;
-lime.net.curl._CURL.CURL_Impl_.GLOBAL_WIN32 = 2;
-lime.net.curl._CURL.CURL_Impl_.GLOBAL_ALL = 3;
-lime.net.curl._CURL.CURL_Impl_.GLOBAL_NOTHING = 0;
-lime.net.curl._CURL.CURL_Impl_.GLOBAL_DEFAULT = 3;
-lime.net.curl._CURL.CURL_Impl_.GLOBAL_ACK_EINTR = 4;
-lime.net.curl._CURLCode.CURLCode_Impl_.OK = 0;
-lime.net.curl._CURLCode.CURLCode_Impl_.UNSUPPORTED_PROTOCOL = 1;
-lime.net.curl._CURLCode.CURLCode_Impl_.FAILED_INIT = 2;
-lime.net.curl._CURLCode.CURLCode_Impl_.URL_MALFORMAT = 3;
-lime.net.curl._CURLCode.CURLCode_Impl_.NOT_BUILT_IN = 4;
-lime.net.curl._CURLCode.CURLCode_Impl_.COULDNT_RESOLVE_PROXY = 5;
-lime.net.curl._CURLCode.CURLCode_Impl_.COULDNT_RESOLVE_HOST = 6;
-lime.net.curl._CURLCode.CURLCode_Impl_.COULDNT_CONNECT = 7;
-lime.net.curl._CURLCode.CURLCode_Impl_.FTP_WEIRD_SERVER_REPLY = 8;
-lime.net.curl._CURLCode.CURLCode_Impl_.REMOTE_ACCESS_DENIED = 9;
-lime.net.curl._CURLCode.CURLCode_Impl_.FTP_ACCEPT_FAILED = 10;
-lime.net.curl._CURLCode.CURLCode_Impl_.FTP_WEIRD_PASS_REPLY = 11;
-lime.net.curl._CURLCode.CURLCode_Impl_.FTP_ACCEPT_TIMEOUT = 12;
-lime.net.curl._CURLCode.CURLCode_Impl_.FTP_WEIRD_PASV_REPLY = 13;
-lime.net.curl._CURLCode.CURLCode_Impl_.FTP_WEIRD_227_FORMAT = 14;
-lime.net.curl._CURLCode.CURLCode_Impl_.FTP_CANT_GET_HOST = 15;
-lime.net.curl._CURLCode.CURLCode_Impl_.FTP_COULDNT_SET_TYPE = 17;
-lime.net.curl._CURLCode.CURLCode_Impl_.PARTIAL_FILE = 18;
-lime.net.curl._CURLCode.CURLCode_Impl_.FTP_COULDNT_RETR_FILE = 19;
-lime.net.curl._CURLCode.CURLCode_Impl_.QUOTE_ERROR = 21;
-lime.net.curl._CURLCode.CURLCode_Impl_.HTTP_RETURNED_ERROR = 22;
-lime.net.curl._CURLCode.CURLCode_Impl_.WRITE_ERROR = 23;
-lime.net.curl._CURLCode.CURLCode_Impl_.UPLOAD_FAILED = 25;
-lime.net.curl._CURLCode.CURLCode_Impl_.READ_ERROR = 26;
-lime.net.curl._CURLCode.CURLCode_Impl_.OUT_OF_MEMORY = 27;
-lime.net.curl._CURLCode.CURLCode_Impl_.OPERATION_TIMEDOUT = 28;
-lime.net.curl._CURLCode.CURLCode_Impl_.FTP_PORT_FAILED = 30;
-lime.net.curl._CURLCode.CURLCode_Impl_.FTP_COULDNT_USE_REST = 31;
-lime.net.curl._CURLCode.CURLCode_Impl_.RANGE_ERROR = 33;
-lime.net.curl._CURLCode.CURLCode_Impl_.HTTP_POST_ERROR = 34;
-lime.net.curl._CURLCode.CURLCode_Impl_.SSL_CONNECT_ERROR = 35;
-lime.net.curl._CURLCode.CURLCode_Impl_.BAD_DOWNLOAD_RESUME = 36;
-lime.net.curl._CURLCode.CURLCode_Impl_.FILE_COULDNT_READ_FILE = 37;
-lime.net.curl._CURLCode.CURLCode_Impl_.LDAP_CANNOT_BIND = 38;
-lime.net.curl._CURLCode.CURLCode_Impl_.LDAP_SEARCH_FAILED = 39;
-lime.net.curl._CURLCode.CURLCode_Impl_.FUNCTION_NOT_FOUND = 41;
-lime.net.curl._CURLCode.CURLCode_Impl_.ABORTED_BY_CALLBACK = 42;
-lime.net.curl._CURLCode.CURLCode_Impl_.BAD_FUNCTION_ARGUMENT = 43;
-lime.net.curl._CURLCode.CURLCode_Impl_.INTERFACE_FAILED = 45;
-lime.net.curl._CURLCode.CURLCode_Impl_.TOO_MANY_REDIRECTS = 47;
-lime.net.curl._CURLCode.CURLCode_Impl_.UNKNOWN_OPTION = 48;
-lime.net.curl._CURLCode.CURLCode_Impl_.TELNET_OPTION_SYNTAX = 49;
-lime.net.curl._CURLCode.CURLCode_Impl_.PEER_FAILED_VERIFICATION = 51;
-lime.net.curl._CURLCode.CURLCode_Impl_.GOT_NOTHING = 52;
-lime.net.curl._CURLCode.CURLCode_Impl_.SSL_ENGINE_NOTFOUND = 53;
-lime.net.curl._CURLCode.CURLCode_Impl_.SSL_ENGINE_SETFAILED = 54;
-lime.net.curl._CURLCode.CURLCode_Impl_.SEND_ERROR = 55;
-lime.net.curl._CURLCode.CURLCode_Impl_.RECV_ERROR = 56;
-lime.net.curl._CURLCode.CURLCode_Impl_.SSL_CERTPROBLEM = 58;
-lime.net.curl._CURLCode.CURLCode_Impl_.SSL_CIPHER = 59;
-lime.net.curl._CURLCode.CURLCode_Impl_.SSL_CACERT = 60;
-lime.net.curl._CURLCode.CURLCode_Impl_.BAD_CONTENT_ENCODING = 61;
-lime.net.curl._CURLCode.CURLCode_Impl_.LDAP_INVALID_URL = 62;
-lime.net.curl._CURLCode.CURLCode_Impl_.FILESIZE_EXCEEDED = 63;
-lime.net.curl._CURLCode.CURLCode_Impl_.USE_SSL_FAILED = 64;
-lime.net.curl._CURLCode.CURLCode_Impl_.SEND_FAIL_REWIND = 65;
-lime.net.curl._CURLCode.CURLCode_Impl_.SSL_ENGINE_INITFAILED = 66;
-lime.net.curl._CURLCode.CURLCode_Impl_.LOGIN_DENIED = 67;
-lime.net.curl._CURLCode.CURLCode_Impl_.TFTP_NOTFOUND = 68;
-lime.net.curl._CURLCode.CURLCode_Impl_.TFTP_PERM = 69;
-lime.net.curl._CURLCode.CURLCode_Impl_.REMOTE_DISK_FULL = 70;
-lime.net.curl._CURLCode.CURLCode_Impl_.TFTP_ILLEGAL = 71;
-lime.net.curl._CURLCode.CURLCode_Impl_.TFTP_UNKNOWNID = 72;
-lime.net.curl._CURLCode.CURLCode_Impl_.REMOTE_FILE_EXISTS = 73;
-lime.net.curl._CURLCode.CURLCode_Impl_.TFTP_NOSUCHUSER = 74;
-lime.net.curl._CURLCode.CURLCode_Impl_.CONV_FAILED = 75;
-lime.net.curl._CURLCode.CURLCode_Impl_.CONV_REQD = 76;
-lime.net.curl._CURLCode.CURLCode_Impl_.SSL_CACERT_BADFILE = 77;
-lime.net.curl._CURLCode.CURLCode_Impl_.REMOTE_FILE_NOT_FOUND = 78;
-lime.net.curl._CURLCode.CURLCode_Impl_.SSH = 79;
-lime.net.curl._CURLCode.CURLCode_Impl_.SSL_SHUTDOWN_FAILED = 80;
-lime.net.curl._CURLCode.CURLCode_Impl_.AGAIN = 81;
-lime.net.curl._CURLCode.CURLCode_Impl_.SSL_CRL_BADFILE = 82;
-lime.net.curl._CURLCode.CURLCode_Impl_.SSL_ISSUER_ERROR = 83;
-lime.net.curl._CURLCode.CURLCode_Impl_.FTP_PRET_FAILED = 84;
-lime.net.curl._CURLCode.CURLCode_Impl_.RTSP_CSEQ_ERROR = 85;
-lime.net.curl._CURLCode.CURLCode_Impl_.RTSP_SESSION_ERROR = 86;
-lime.net.curl._CURLCode.CURLCode_Impl_.FTP_BAD_FILE_LIST = 87;
-lime.net.curl._CURLCode.CURLCode_Impl_.CHUNK_FAILED = 88;
-lime.net.curl._CURLCode.CURLCode_Impl_.NO_CONNECTION_AVAILABLE = 89;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.NONE = 0;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.EFFECTIVE_URL = 1048577;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.RESPONSE_CODE = 2097154;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.TOTAL_TIME = 3145731;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.NAMELOOKUP_TIME = 3145732;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.CONNECT_TIME = 3145733;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.PRETRANSFER_TIME = 3145734;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.SIZE_UPLOAD = 3145735;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.SIZE_DOWNLOAD = 3145736;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.SPEED_DOWNLOAD = 3145737;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.SPEED_UPLOAD = 3145738;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.HEADER_SIZE = 2097163;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.REQUEST_SIZE = 2097164;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.SSL_VERIFYRESULT = 2097165;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.FILETIME = 2097166;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.CONTENT_LENGTH_DOWNLOAD = 3145743;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.CONTENT_LENGTH_UPLOAD = 3145744;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.STARTTRANSFER_TIME = 3145745;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.CONTENT_TYPE = 1048594;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.REDIRECT_TIME = 3145747;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.REDIRECT_COUNT = 2097172;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.PRIVATE = 1048597;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.HTTP_CONNECTCODE = 2097174;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.HTTPAUTH_AVAIL = 2097175;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.PROXYAUTH_AVAIL = 2097176;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.OS_ERRNO = 2097177;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.NUM_CONNECTS = 2097178;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.SSL_ENGINES = 4194331;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.COOKIELIST = 4194332;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.LASTSOCKET = 2097181;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.FTP_ENTRY_PATH = 1048606;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.REDIRECT_URL = 1048607;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.PRIMARY_IP = 1048608;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.APPCONNECT_TIME = 3145761;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.CERTINFO = 4194338;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.CONDITION_UNMET = 2097187;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.RTSP_SESSION_ID = 1048612;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.RTSP_CLIENT_CSEQ = 2097189;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.RTSP_SERVER_CSEQ = 2097190;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.RTSP_CSEQ_RECV = 2097191;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.PRIMARY_PORT = 2097192;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.LOCAL_IP = 1048617;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.LOCAL_PORT = 2097194;
-lime.net.curl._CURLInfo.CURLInfo_Impl_.TLS_SESSION = 4194347;
-lime.net.curl._CURLOption.CURLOption_Impl_.URL = 10002;
-lime.net.curl._CURLOption.CURLOption_Impl_.PORT = 3;
-lime.net.curl._CURLOption.CURLOption_Impl_.PROXY = 10004;
-lime.net.curl._CURLOption.CURLOption_Impl_.USERPWD = 10005;
-lime.net.curl._CURLOption.CURLOption_Impl_.PROXYUSERPWD = 10006;
-lime.net.curl._CURLOption.CURLOption_Impl_.RANGE = 10007;
-lime.net.curl._CURLOption.CURLOption_Impl_.ERRORBUFFER = 10010;
-lime.net.curl._CURLOption.CURLOption_Impl_.WRITEFUNCTION = 20011;
-lime.net.curl._CURLOption.CURLOption_Impl_.READFUNCTION = 20012;
-lime.net.curl._CURLOption.CURLOption_Impl_.TIMEOUT = 13;
-lime.net.curl._CURLOption.CURLOption_Impl_.INFILESIZE = 14;
-lime.net.curl._CURLOption.CURLOption_Impl_.POSTFIELDS = 10015;
-lime.net.curl._CURLOption.CURLOption_Impl_.REFERER = 10016;
-lime.net.curl._CURLOption.CURLOption_Impl_.FTPPORT = 10017;
-lime.net.curl._CURLOption.CURLOption_Impl_.USERAGENT = 10018;
-lime.net.curl._CURLOption.CURLOption_Impl_.LOW_SPEED_LIMIT = 19;
-lime.net.curl._CURLOption.CURLOption_Impl_.LOW_SPEED_TIME = 20;
-lime.net.curl._CURLOption.CURLOption_Impl_.RESUME_FROM = 21;
-lime.net.curl._CURLOption.CURLOption_Impl_.COOKIE = 22;
-lime.net.curl._CURLOption.CURLOption_Impl_.HTTPHEADER = 10023;
-lime.net.curl._CURLOption.CURLOption_Impl_.RTSPHEADER = 10023;
-lime.net.curl._CURLOption.CURLOption_Impl_.HTTPPOST = 10024;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSLCERT = 10025;
-lime.net.curl._CURLOption.CURLOption_Impl_.KEYPASSWD = 10026;
-lime.net.curl._CURLOption.CURLOption_Impl_.CRLF = 27;
-lime.net.curl._CURLOption.CURLOption_Impl_.QUOTE = 10028;
-lime.net.curl._CURLOption.CURLOption_Impl_.WRITEHEADER = 10029;
-lime.net.curl._CURLOption.CURLOption_Impl_.HEADERDATA = 10029;
-lime.net.curl._CURLOption.CURLOption_Impl_.COOKIEFILE = 10031;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSLVERSION = 32;
-lime.net.curl._CURLOption.CURLOption_Impl_.TIMECONDITION = 33;
-lime.net.curl._CURLOption.CURLOption_Impl_.TIMEVALUE = 34;
-lime.net.curl._CURLOption.CURLOption_Impl_.CUSTOMREQUEST = 10036;
-lime.net.curl._CURLOption.CURLOption_Impl_.STDERR = 10037;
-lime.net.curl._CURLOption.CURLOption_Impl_.POSTQUOTE = 10039;
-lime.net.curl._CURLOption.CURLOption_Impl_.WRITEINFO = 10040;
-lime.net.curl._CURLOption.CURLOption_Impl_.VERBOSE = 41;
-lime.net.curl._CURLOption.CURLOption_Impl_.HEADER = 42;
-lime.net.curl._CURLOption.CURLOption_Impl_.NOPROGRESS = 43;
-lime.net.curl._CURLOption.CURLOption_Impl_.NOBODY = 44;
-lime.net.curl._CURLOption.CURLOption_Impl_.FAILONERROR = 45;
-lime.net.curl._CURLOption.CURLOption_Impl_.UPLOAD = 46;
-lime.net.curl._CURLOption.CURLOption_Impl_.POST = 47;
-lime.net.curl._CURLOption.CURLOption_Impl_.DIRLISTONLY = 48;
-lime.net.curl._CURLOption.CURLOption_Impl_.APPEND = 50;
-lime.net.curl._CURLOption.CURLOption_Impl_.NETRC = 51;
-lime.net.curl._CURLOption.CURLOption_Impl_.FOLLOWLOCATION = 52;
-lime.net.curl._CURLOption.CURLOption_Impl_.TRANSFERTEXT = 53;
-lime.net.curl._CURLOption.CURLOption_Impl_.PUT = 54;
-lime.net.curl._CURLOption.CURLOption_Impl_.PROGRESSFUNCTION = 20056;
-lime.net.curl._CURLOption.CURLOption_Impl_.PROGRESSDATA = 10057;
-lime.net.curl._CURLOption.CURLOption_Impl_.XFERINFODATA = 10057;
-lime.net.curl._CURLOption.CURLOption_Impl_.AUTOREFERER = 58;
-lime.net.curl._CURLOption.CURLOption_Impl_.PROXYPORT = 59;
-lime.net.curl._CURLOption.CURLOption_Impl_.POSTFIELDSIZE = 60;
-lime.net.curl._CURLOption.CURLOption_Impl_.HTTPPROXYTUNNEL = 61;
-lime.net.curl._CURLOption.CURLOption_Impl_.INTERFACE = 10062;
-lime.net.curl._CURLOption.CURLOption_Impl_.KRBLEVEL = 10063;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSL_VERIFYPEER = 64;
-lime.net.curl._CURLOption.CURLOption_Impl_.CAINFO = 10065;
-lime.net.curl._CURLOption.CURLOption_Impl_.MAXREDIRS = 68;
-lime.net.curl._CURLOption.CURLOption_Impl_.FILETIME = 69;
-lime.net.curl._CURLOption.CURLOption_Impl_.TELNETOPTIONS = 10070;
-lime.net.curl._CURLOption.CURLOption_Impl_.MAXCONNECTS = 71;
-lime.net.curl._CURLOption.CURLOption_Impl_.CLOSEPOLICY = 72;
-lime.net.curl._CURLOption.CURLOption_Impl_.FRESH_CONNECT = 74;
-lime.net.curl._CURLOption.CURLOption_Impl_.FORBID_REUSE = 75;
-lime.net.curl._CURLOption.CURLOption_Impl_.RANDOM_FILE = 10076;
-lime.net.curl._CURLOption.CURLOption_Impl_.EGDSOCKET = 10077;
-lime.net.curl._CURLOption.CURLOption_Impl_.CONNECTTIMEOUT = 78;
-lime.net.curl._CURLOption.CURLOption_Impl_.HEADERFUNCTION = 20079;
-lime.net.curl._CURLOption.CURLOption_Impl_.HTTPGET = 80;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSL_VERIFYHOST = 81;
-lime.net.curl._CURLOption.CURLOption_Impl_.COOKIEJAR = 10082;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSL_CIPHER_LIST = 10083;
-lime.net.curl._CURLOption.CURLOption_Impl_.HTTP_VERSION = 84;
-lime.net.curl._CURLOption.CURLOption_Impl_.FTP_USE_EPSV = 85;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSLCERTTYPE = 10086;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSLKEY = 10087;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSLKEYTYPE = 10088;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSLENGINE = 10089;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSLENGINE_DEFAULT = 90;
-lime.net.curl._CURLOption.CURLOption_Impl_.DNS_USE_GLOBAL_CACHE = 91;
-lime.net.curl._CURLOption.CURLOption_Impl_.DNS_CACHE_TIMEOUT = 92;
-lime.net.curl._CURLOption.CURLOption_Impl_.PREQUOTE = 10093;
-lime.net.curl._CURLOption.CURLOption_Impl_.DEBUGFUNCTION = 20094;
-lime.net.curl._CURLOption.CURLOption_Impl_.DEBUGDATA = 10095;
-lime.net.curl._CURLOption.CURLOption_Impl_.COOKIESESSION = 96;
-lime.net.curl._CURLOption.CURLOption_Impl_.CAPATH = 10097;
-lime.net.curl._CURLOption.CURLOption_Impl_.BUFFERSIZE = 98;
-lime.net.curl._CURLOption.CURLOption_Impl_.NOSIGNAL = 99;
-lime.net.curl._CURLOption.CURLOption_Impl_.SHARE = 10100;
-lime.net.curl._CURLOption.CURLOption_Impl_.PROXYTYPE = 101;
-lime.net.curl._CURLOption.CURLOption_Impl_.ACCEPT_ENCODING = 10102;
-lime.net.curl._CURLOption.CURLOption_Impl_.PRIVATE = 10103;
-lime.net.curl._CURLOption.CURLOption_Impl_.HTTP200ALIASES = 10104;
-lime.net.curl._CURLOption.CURLOption_Impl_.UNRESTRICTED_AUTH = 105;
-lime.net.curl._CURLOption.CURLOption_Impl_.FTP_USE_EPRT = 106;
-lime.net.curl._CURLOption.CURLOption_Impl_.HTTPAUTH = 107;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSL_CTX_FUNCTION = 20108;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSL_CTX_DATA = 10109;
-lime.net.curl._CURLOption.CURLOption_Impl_.FTP_CREATE_MISSING_DIRS = 110;
-lime.net.curl._CURLOption.CURLOption_Impl_.PROXYAUTH = 111;
-lime.net.curl._CURLOption.CURLOption_Impl_.FTP_RESPONSE_TIMEOUT = 112;
-lime.net.curl._CURLOption.CURLOption_Impl_.SERVER_RESPONSE_TIMEOUT = 112;
-lime.net.curl._CURLOption.CURLOption_Impl_.IPRESOLVE = 113;
-lime.net.curl._CURLOption.CURLOption_Impl_.MAXFILESIZE = 114;
-lime.net.curl._CURLOption.CURLOption_Impl_.INFILESIZE_LARGE = 30115;
-lime.net.curl._CURLOption.CURLOption_Impl_.RESUME_FROM_LARGE = 30116;
-lime.net.curl._CURLOption.CURLOption_Impl_.MAXFILESIZE_LARGE = 30117;
-lime.net.curl._CURLOption.CURLOption_Impl_.NETRC_FILE = 10118;
-lime.net.curl._CURLOption.CURLOption_Impl_.USE_SSL = 119;
-lime.net.curl._CURLOption.CURLOption_Impl_.POSTFIELDSIZE_LARGE = 30120;
-lime.net.curl._CURLOption.CURLOption_Impl_.TCP_NODELAY = 121;
-lime.net.curl._CURLOption.CURLOption_Impl_.FTPSSLAUTH = 129;
-lime.net.curl._CURLOption.CURLOption_Impl_.IOCTLFUNCTION = 20130;
-lime.net.curl._CURLOption.CURLOption_Impl_.IOCTLDATA = 10131;
-lime.net.curl._CURLOption.CURLOption_Impl_.FTP_ACCOUNT = 10134;
-lime.net.curl._CURLOption.CURLOption_Impl_.COOKIELIST = 10135;
-lime.net.curl._CURLOption.CURLOption_Impl_.IGNORE_CONTENT_LENGTH = 10136;
-lime.net.curl._CURLOption.CURLOption_Impl_.FTP_SKIP_PASV_IP = 137;
-lime.net.curl._CURLOption.CURLOption_Impl_.FTP_FILEMETHOD = 138;
-lime.net.curl._CURLOption.CURLOption_Impl_.LOCALPORT = 139;
-lime.net.curl._CURLOption.CURLOption_Impl_.LOCALPORTRANGE = 140;
-lime.net.curl._CURLOption.CURLOption_Impl_.CONNECT_ONLY = 141;
-lime.net.curl._CURLOption.CURLOption_Impl_.CONV_FROM_NETWORK_FUNCTION = 20142;
-lime.net.curl._CURLOption.CURLOption_Impl_.CONV_TO_NETWORK_FUNCTION = 20143;
-lime.net.curl._CURLOption.CURLOption_Impl_.CONV_FROM_UTF8_FUNCTION = 20144;
-lime.net.curl._CURLOption.CURLOption_Impl_.MAX_SEND_SPEED_LARGE = 30145;
-lime.net.curl._CURLOption.CURLOption_Impl_.MAX_RECV_SPEED_LARGE = 30146;
-lime.net.curl._CURLOption.CURLOption_Impl_.FTP_ALTERNATIVE_TO_USER = 10147;
-lime.net.curl._CURLOption.CURLOption_Impl_.SOCKOPTFUNCTION = 20148;
-lime.net.curl._CURLOption.CURLOption_Impl_.SOCKOPTDATA = 10149;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSL_SESSIONID_CACHE = 150;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSH_AUTH_TYPES = 151;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSH_PUBLIC_KEYFILE = 10152;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSH_PRIVATE_KEYFILE = 10153;
-lime.net.curl._CURLOption.CURLOption_Impl_.FTP_SSL_CCC = 154;
-lime.net.curl._CURLOption.CURLOption_Impl_.TIMEOUT_MS = 155;
-lime.net.curl._CURLOption.CURLOption_Impl_.CONNECTTIMEOUT_MS = 156;
-lime.net.curl._CURLOption.CURLOption_Impl_.HTTP_TRANSFER_DECODING = 157;
-lime.net.curl._CURLOption.CURLOption_Impl_.HTTP_CONTENT_DECODING = 158;
-lime.net.curl._CURLOption.CURLOption_Impl_.NEW_FILE_PERMS = 159;
-lime.net.curl._CURLOption.CURLOption_Impl_.NEW_DIRECTORY_PERMS = 160;
-lime.net.curl._CURLOption.CURLOption_Impl_.POSTREDIR = 161;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSH_HOST_PUBLIC_KEY_MD5 = 10162;
-lime.net.curl._CURLOption.CURLOption_Impl_.OPENSOCKETFUNCTION = 20163;
-lime.net.curl._CURLOption.CURLOption_Impl_.OPENSOCKETDATA = 10164;
-lime.net.curl._CURLOption.CURLOption_Impl_.COPYPOSTFIELDS = 10165;
-lime.net.curl._CURLOption.CURLOption_Impl_.PROXY_TRANSFER_MODE = 166;
-lime.net.curl._CURLOption.CURLOption_Impl_.SEEKFUNCTION = 20167;
-lime.net.curl._CURLOption.CURLOption_Impl_.SEEKDATA = 10168;
-lime.net.curl._CURLOption.CURLOption_Impl_.CRLFILE = 10169;
-lime.net.curl._CURLOption.CURLOption_Impl_.ISSUERCERT = 10170;
-lime.net.curl._CURLOption.CURLOption_Impl_.ADDRESS_SCOPE = 171;
-lime.net.curl._CURLOption.CURLOption_Impl_.CERTINFO = 172;
-lime.net.curl._CURLOption.CURLOption_Impl_.USERNAME = 10173;
-lime.net.curl._CURLOption.CURLOption_Impl_.PASSWORD = 10174;
-lime.net.curl._CURLOption.CURLOption_Impl_.PROXYUSERNAME = 10175;
-lime.net.curl._CURLOption.CURLOption_Impl_.PROXYPASSWORD = 10176;
-lime.net.curl._CURLOption.CURLOption_Impl_.NOPROXY = 10177;
-lime.net.curl._CURLOption.CURLOption_Impl_.TFTP_BLKSIZE = 178;
-lime.net.curl._CURLOption.CURLOption_Impl_.SOCKS5_GSSAPI_SERVICE = 10179;
-lime.net.curl._CURLOption.CURLOption_Impl_.SOCKS5_GSSAPI_NEC = 180;
-lime.net.curl._CURLOption.CURLOption_Impl_.PROTOCOLS = 181;
-lime.net.curl._CURLOption.CURLOption_Impl_.REDIR_PROTOCOLS = 182;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSH_KNOWNHOSTS = 10183;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSH_KEYFUNCTION = 20184;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSH_KEYDATA = 10185;
-lime.net.curl._CURLOption.CURLOption_Impl_.MAIL_FROM = 10186;
-lime.net.curl._CURLOption.CURLOption_Impl_.MAIL_RCPT = 10187;
-lime.net.curl._CURLOption.CURLOption_Impl_.FTP_USE_PRET = 188;
-lime.net.curl._CURLOption.CURLOption_Impl_.RTSP_REQUEST = 189;
-lime.net.curl._CURLOption.CURLOption_Impl_.RTSP_SESSION_ID = 10190;
-lime.net.curl._CURLOption.CURLOption_Impl_.RTSP_STREAM_URI = 10191;
-lime.net.curl._CURLOption.CURLOption_Impl_.RTSP_TRANSPORT = 10192;
-lime.net.curl._CURLOption.CURLOption_Impl_.RTSP_CLIENT_CSEQ = 193;
-lime.net.curl._CURLOption.CURLOption_Impl_.RTSP_SERVER_CSEQ = 194;
-lime.net.curl._CURLOption.CURLOption_Impl_.INTERLEAVEDATA = 10195;
-lime.net.curl._CURLOption.CURLOption_Impl_.INTERLEAVEFUNCTION = 20196;
-lime.net.curl._CURLOption.CURLOption_Impl_.WILDCARDMATCH = 197;
-lime.net.curl._CURLOption.CURLOption_Impl_.CHUNK_BGN_FUNCTION = 20198;
-lime.net.curl._CURLOption.CURLOption_Impl_.CHUNK_END_FUNCTION = 20199;
-lime.net.curl._CURLOption.CURLOption_Impl_.FNMATCH_FUNCTION = 20200;
-lime.net.curl._CURLOption.CURLOption_Impl_.CHUNK_DATA = 10201;
-lime.net.curl._CURLOption.CURLOption_Impl_.FNMATCH_DATA = 10202;
-lime.net.curl._CURLOption.CURLOption_Impl_.RESOLVE = 10203;
-lime.net.curl._CURLOption.CURLOption_Impl_.TLSAUTH_USERNAME = 10204;
-lime.net.curl._CURLOption.CURLOption_Impl_.TLSAUTH_PASSWORD = 10205;
-lime.net.curl._CURLOption.CURLOption_Impl_.TLSAUTH_TYPE = 10206;
-lime.net.curl._CURLOption.CURLOption_Impl_.TRANSFER_ENCODING = 207;
-lime.net.curl._CURLOption.CURLOption_Impl_.CLOSESOCKETFUNCTION = 20208;
-lime.net.curl._CURLOption.CURLOption_Impl_.CLOSESOCKETDATA = 10209;
-lime.net.curl._CURLOption.CURLOption_Impl_.GSSAPI_DELEGATION = 210;
-lime.net.curl._CURLOption.CURLOption_Impl_.DNS_SERVERS = 10211;
-lime.net.curl._CURLOption.CURLOption_Impl_.ACCEPTTIMEOUT_MS = 212;
-lime.net.curl._CURLOption.CURLOption_Impl_.TCP_KEEPALIVE = 213;
-lime.net.curl._CURLOption.CURLOption_Impl_.TCP_KEEPIDLE = 214;
-lime.net.curl._CURLOption.CURLOption_Impl_.TCP_KEEPINTVL = 215;
-lime.net.curl._CURLOption.CURLOption_Impl_.SSL_OPTIONS = 216;
-lime.net.curl._CURLOption.CURLOption_Impl_.MAIL_AUTH = 10217;
-lime.net.curl._CURLOption.CURLOption_Impl_.SASL_IR = 218;
-lime.net.curl._CURLOption.CURLOption_Impl_.XFERINFOFUNCTION = 20219;
-lime.net.curl._CURLOption.CURLOption_Impl_.XOAUTH2_BEARER = 10220;
-lime.net.curl._CURLOption.CURLOption_Impl_.DNS_INTERFACE = 10221;
-lime.net.curl._CURLOption.CURLOption_Impl_.DNS_LOCAL_IP4 = 10222;
-lime.net.curl._CURLOption.CURLOption_Impl_.DNS_LOCAL_IP6 = 10223;
-lime.net.curl._CURLOption.CURLOption_Impl_.LOGIN_OPTIONS = 10224;
-lime.net.curl._CURLVersion.CURLVersion_Impl_.FIRST = 0;
-lime.net.curl._CURLVersion.CURLVersion_Impl_.SECOND = 1;
-lime.net.curl._CURLVersion.CURLVersion_Impl_.THIRD = 2;
-lime.net.curl._CURLVersion.CURLVersion_Impl_.FOURTH = 3;
 lime.system.System.__moduleNames = null;
+lime.system.System.__startTime = haxe.Timer.stamp();
 lime.ui._KeyCode.KeyCode_Impl_.UNKNOWN = 0;
 lime.ui._KeyCode.KeyCode_Impl_.BACKSPACE = 8;
 lime.ui._KeyCode.KeyCode_Impl_.TAB = 9;
@@ -22126,31 +22852,31 @@ lime.ui._KeyCode.KeyCode_Impl_.BACKLIGHT_DOWN = 1073742103;
 lime.ui._KeyCode.KeyCode_Impl_.BACKLIGHT_UP = 1073742104;
 lime.ui._KeyCode.KeyCode_Impl_.EJECT = 1073742105;
 lime.ui._KeyCode.KeyCode_Impl_.SLEEP = 1073742106;
-lime.ui.KeyEventManager.onKeyDown = new lime.app.Event();
-lime.ui.KeyEventManager.onKeyUp = new lime.app.Event();
-lime.ui.MouseEventManager.onMouseDown = new lime.app.Event();
-lime.ui.MouseEventManager.onMouseMove = new lime.app.Event();
-lime.ui.MouseEventManager.onMouseUp = new lime.app.Event();
-lime.ui.MouseEventManager.onMouseWheel = new lime.app.Event();
-lime.ui.TouchEventManager.onTouchEnd = new lime.app.Event();
-lime.ui.TouchEventManager.onTouchMove = new lime.app.Event();
-lime.ui.TouchEventManager.onTouchStart = new lime.app.Event();
-lime.ui.Window.onWindowActivate = new lime.app.Event();
-lime.ui.Window.onWindowClose = new lime.app.Event();
-lime.ui.Window.onWindowDeactivate = new lime.app.Event();
-lime.ui.Window.onWindowFocusIn = new lime.app.Event();
-lime.ui.Window.onWindowFocusOut = new lime.app.Event();
-lime.ui.Window.onWindowMove = new lime.app.Event();
-lime.ui.Window.onWindowResize = new lime.app.Event();
+lime.ui._KeyModifier.KeyModifier_Impl_.NONE = 0;
+lime.ui._KeyModifier.KeyModifier_Impl_.LEFT_SHIFT = 1;
+lime.ui._KeyModifier.KeyModifier_Impl_.RIGHT_SHIFT = 2;
+lime.ui._KeyModifier.KeyModifier_Impl_.LEFT_CTRL = 64;
+lime.ui._KeyModifier.KeyModifier_Impl_.RIGHT_CTRL = 128;
+lime.ui._KeyModifier.KeyModifier_Impl_.LEFT_ALT = 256;
+lime.ui._KeyModifier.KeyModifier_Impl_.RIGHT_ALT = 512;
+lime.ui._KeyModifier.KeyModifier_Impl_.LEFT_META = 1024;
+lime.ui._KeyModifier.KeyModifier_Impl_.RIGHT_META = 2048;
+lime.ui._KeyModifier.KeyModifier_Impl_.NUM_LOCK = 4096;
+lime.ui._KeyModifier.KeyModifier_Impl_.CAPS_LOCK = 8192;
+lime.ui._KeyModifier.KeyModifier_Impl_.MODE = 16384;
+lime.ui._KeyModifier.KeyModifier_Impl_.CTRL = 192;
+lime.ui._KeyModifier.KeyModifier_Impl_.SHIFT = 3;
+lime.ui._KeyModifier.KeyModifier_Impl_.ALT = 768;
+lime.ui._KeyModifier.KeyModifier_Impl_.META = 3072;
 lime.utils.ByteArray.lime_byte_array_overwrite_file = lime.system.System.load("lime","lime_byte_array_overwrite_file",2);
 lime.utils.ByteArray.lime_byte_array_read_file = lime.system.System.load("lime","lime_byte_array_read_file",1);
 lime.utils.ByteArray.lime_lzma_decode = lime.system.System.load("lime","lime_lzma_decode",1);
 lime.utils.ByteArray.lime_lzma_encode = lime.system.System.load("lime","lime_lzma_encode",1);
+openfl.display.LoaderInfo.__rootURL = window.document.URL;
 openfl.system.ApplicationDomain.currentDomain = new openfl.system.ApplicationDomain(null);
 openfl.geom.Matrix.__identity = new openfl.geom.Matrix();
 openfl.Lib.current = new openfl.display.MovieClip();
 openfl.Lib.__sentWarnings = new haxe.ds.StringMap();
-openfl.Lib.__startTime = haxe.Timer.stamp();
 openfl._internal.renderer.canvas.CanvasGraphics.SIN45 = 0.70710678118654752440084436210485;
 openfl._internal.renderer.canvas.CanvasGraphics.TAN22 = 0.4142135623730950488016887242097;
 openfl._internal.renderer.opengl.GLRenderer.blendModesWebGL = null;
@@ -22194,6 +22920,7 @@ openfl.display.Tilesheet.TILE_BLEND_NORMAL = 0;
 openfl.display.Tilesheet.TILE_BLEND_ADD = 65536;
 openfl.display.Tilesheet.TILE_BLEND_MULTIPLY = 131072;
 openfl.display.Tilesheet.TILE_BLEND_SCREEN = 262144;
+openfl.display.Tilesheet.TILE_BLEND_SUBTRACT = 524288;
 openfl.display.Tilesheet.__defaultPoint = new openfl.geom.Point(0,0);
 openfl.display3D.Context3D.TEXTURE_MAX_ANISOTROPY_EXT = 34046;
 openfl.display3D.Context3D.MAX_SAMPLERS = 8;
