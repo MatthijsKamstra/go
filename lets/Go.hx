@@ -6,7 +6,7 @@ import lets.easing.IEasing;
 import haxe.Timer;
 
 import flash.Lib;
-import flash.display.DisplayObjectContainer;
+import flash.display.DisplayObject;
 
 /**
 Lightweight, simple, compact, chainable tween library for Haxe/Openfl.
@@ -39,7 +39,7 @@ class Go
 	/**
 		Current Go version
 	 */
-	public static var version = '0.0.4-g';
+	public static var version = '0.0.5-a';
 
 	private static var _trigger:Timer;
 	private static var _tweens:Array<Go> = new Array<Go>();
@@ -74,7 +74,7 @@ class Go
 	 * @param  duration 	in seconds	(default value is .5 seconds)
 	 * @return          Go
 	 */
-	public function new(target:DisplayObjectContainer, ?duration:Float = .5)
+	public function new(target:DisplayObject, ?duration:Float = .5)
 	{
 		this._target = target;
 		this._duration = Std.int (duration * 1000);
@@ -101,7 +101,7 @@ class Go
 	 * @param  duration 	in seconds	(default value is .5 seconds)
 	 * @return          Go
 	 */
-	static inline public function to(target:DisplayObjectContainer, ?duration:Float = .5):Go
+	static inline public function to(target:DisplayObject, ?duration:Float = .5):Go
 	{
 		var go = new Go(target, duration);
 		go._isFrom = false;
@@ -119,9 +119,10 @@ class Go
 	 * @param  duration 	in seconds	(default value is .5 seconds)
 	 * @return          Go
 	 */	
-	static inline public function from(target:DisplayObjectContainer, ?duration:Float = .5):Go
+	static inline public function from(target:DisplayObject, ?duration:Float = .5):Go
 	{
 		var go = new Go(target, duration);
+		target.visible = false;
 		go._isFrom = true;
 		return go;
 	}
@@ -371,6 +372,13 @@ class Go
 	
 	private function update():Void
 	{
+		// [mck] FROM animation will be force to there from position
+		if(_isFrom) {
+			updateProperties(1);
+			_target.visible = true;
+			_isFrom = false; // [mck] never used after this
+		} 
+
 		// [mck] check for delay
 		if (_delay > 0) {
 			var waitTime = (Lib.getTimer() - _initTime);
