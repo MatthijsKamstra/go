@@ -60,7 +60,7 @@ class Go
 	// [mck] for debug 
 	public static var id:Int = -1;
 	private var _id : String;
-	private static var DEBUG : Bool = false;
+	public static var DEBUG : Bool = false;
 
 
 	/**
@@ -88,6 +88,8 @@ class Go
 		
 		// [mck] extreme little delay to make sure all the values are set
 		haxe.Timer.delay(init, 1); // 1 milisecond delay
+
+		if(Go.DEBUG) trace('constructor :: _target: ' + _target + ' / _duration: ' + _duration + ' /_initTime: ' +_initTime);
 	}
 
 	/**
@@ -161,7 +163,7 @@ class Go
 
 		while(_tweens.length > 0)
 		{	
-			// trace(_tweens[0]._id);
+			if(Go.DEBUG) trace(_tweens[0]._id);
 			_tweens[0].destroy();
 			_tweens.pop();
 		}
@@ -346,6 +348,8 @@ class Go
 
 	private function init():Void
 	{
+		if (Go.DEBUG) trace('init :: _trigger: ' + _trigger ); // debug
+
 		// [mck] make sure we use the frameRate from the original movie
 		var framerate:Int = (flash.Lib.current.stage.frameRate > 30) ? Std.int (flash.Lib.current.stage.frameRate) : 30;
 		// var framerate:Int = 30;
@@ -355,7 +359,8 @@ class Go
 
 	private function onEnterFrameHandler( ):Void
 	{
-		// trace('- ' + Lib.getTimer()); // debug
+		if (Go.DEBUG) trace('onEnterFrameHandler - ' + Lib.getTimer() ); // debug
+
 		var _total = _tweens.length;
 		if(_initTime == -1) return;
 		if (_total <= 0)
@@ -392,7 +397,7 @@ class Go
 
 		var progressed = Lib.getTimer() - _initTime;
 
-		// trace(_target.name + ' // progressed: ' + progressed + ' >= _duration: ' + _duration);
+		if(Go.DEBUG) trace('update - _target.name: ' + _target.name + ' // progressed: ' + progressed + ' >= _duration: ' + _duration);
 
 		if( progressed >= _duration){
 			// [mck] setProperties in the final state
@@ -429,7 +434,7 @@ class Go
 
 	private function complete():Void 
 	{
-		//trace('complete :: _duration: ' + _duration + ' / _initTime: ' + _initTime + ' / _tweens.length: ' + _tweens.length);
+		if(Go.DEBUG) trace('complete :: _duration: ' + _duration + ' / _initTime: ' + _initTime + ' / _tweens.length: ' + _tweens.length);
 	
 		if(_isYoyo) 
 		{
@@ -469,15 +474,18 @@ class Go
 
 	private function killTimer():Void
 	{
-		if(DEBUG) trace('kill timer //  all done // reset');
+		if(Go.DEBUG) trace('killTimer //  all done // reset');
 		// [mck] stop timer, we are done!
 		_trigger.stop();
 		_trigger.run = null;
+		_trigger = null;
 	}
 
 	private function destroy():Void
 	{
 		if(Lambda.has(_tweens, this)) _tweens.remove(this);
+
+		if(Go.DEBUG) trace('destroy :: _duration: ' + _duration + ' / _initTime: ' + _initTime + ' / _tweens.length: ' + _tweens.length);
 
 		// [mck] cleaning up
 		if( _options )
