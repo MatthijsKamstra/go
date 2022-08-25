@@ -7,9 +7,11 @@ import haxe.Timer;
 
 import flash.Lib;
 import flash.display.DisplayObject;
+import flash.events.Event;
 
 /**
 Lightweight, simple, compact, chainable tween library for Haxe/Openfl.
+
 
 ```
 import lets.Go;
@@ -27,14 +29,14 @@ function new ()
 	Go.to(_square, 2.5).x(500).y(200).scale(2).rotation(180).ease(lets.easing.Linear.easeNone).onComplete(onCompleteHandler, ['_square']);
 }
 
-function onCompleteHandler(value:String):Void 
-{ 
-	trace('onCompleteHandler - arg : '+ value); 
+function onCompleteHandler(value:String):Void
+{
+	trace('onCompleteHandler - arg : '+ value);
 }
 ```
 
  */
-class Go 
+class Go
 {
 	/**
 		Current Go version
@@ -57,7 +59,7 @@ class Go
 	private var _initTime:Int = -1;
 	private var _delay:Int = 0;
 
-	// [mck] for debug 
+	// [mck] for debug
 	public static var id:Int = -1;
 	private var _id : String;
 	public static var DEBUG : Bool = false;
@@ -65,11 +67,11 @@ class Go
 
 	/**
 	 * Animate an object to another state (like position, scale, rotation, alpha)
-	 * 
+	 *
 	 * ```
 	 * lets.Go.to(foobarMc, 1.5);
 	 * ```
-	 * 
+	 *
 	 * @param  target   	object to animate
 	 * @param  duration 	in seconds	(default value is .5 seconds)
 	 * @return          Go
@@ -83,9 +85,9 @@ class Go
 		id++;
 		this._id = "Go-" + version + "-" + Std.string (id);
 
-		// if(!Lambda.has(_tweens, this)) 
+		// if(!Lambda.has(_tweens, this))
 		_tweens.push(this);
-		
+
 		// [mck] extreme little delay to make sure all the values are set
 		haxe.Timer.delay(init, 1); // 1 milisecond delay
 
@@ -94,11 +96,11 @@ class Go
 
 	/**
 	 * Animate an object **TO** another state (like position, scale, rotation, alpha)
-	 * 
+	 *
 	 * ```
 	 * lets.Go.to(foobarMc, 1.5);
 	 * ```
-	 * 
+	 *
 	 * @param  target   	object to animate
 	 * @param  duration 	in seconds	(default value is .5 seconds)
 	 * @return          Go
@@ -116,11 +118,11 @@ class Go
 	 * ```
 	 * lets.Go.from(foobarMc, 1.5);
 	 * ```
-	 * 
+	 *
 	 * @param  target   	object to animate
 	 * @param  duration 	in seconds	(default value is .5 seconds)
 	 * @return          Go
-	 */	
+	 */
 	static inline public function from(target:DisplayObject, ?duration:Float = .5):Go
 	{
 		var go = new Go(target, duration);
@@ -131,16 +133,16 @@ class Go
 
 	/**
 	 * Use Go to do a delayed call to a function
-	 * 
+	 *
 	 * ```
 	 * lets.Go.timer(1.5).onComplete(onCompleteHandler);
 	 * ```
-	 * 
-	 * @param  duration 	in seconds	
+	 *
+	 * @param  duration 	in seconds
 	 * @return          Go
-	 */	
+	 */
 	static inline public function timer(duration:Float):Go
-	{	
+	{
 		var go = new Go(null, duration);
 		return go;
 	}
@@ -149,11 +151,11 @@ class Go
 	 * Stop and remove all tweens in Go
 	 */
 	static inline public function killAll():Void
-	{	
-		if (Go.DEBUG){		
+	{
+		if (Go.DEBUG){
 			trace('function killAll()');
-			trace('_trigger: '+_trigger);
-			trace('_tweens.length: '+_tweens.length);
+			trace('_trigger: ' + _trigger);
+			trace('_tweens.length: ' + _tweens.length);
 		}
 
 		// [mck] stop timer, we are done!
@@ -162,18 +164,18 @@ class Go
 		_trigger = null;
 
 		while(_tweens.length > 0)
-		{	
+		{
 			if(Go.DEBUG) trace(_tweens[0]._id);
 			_tweens[0].destroy();
 			_tweens.pop();
 		}
 
-		if (Go.DEBUG){	
-			trace('_trigger: '+_trigger);
-			trace('_tweens.length: '+_tweens.length);
+		if (Go.DEBUG){
+			trace('_trigger: ' + _trigger);
+			trace('_tweens.length: ' + _tweens.length);
 
-			trace('_trigger: '+_trigger);
-			trace('_tweens'+_tweens);
+			trace('_trigger: ' + _trigger);
+			trace('_tweens' + _tweens);
 		}
 
 	}
@@ -181,11 +183,11 @@ class Go
 	// ____________________________________ properties ____________________________________
 
 	/**
-	 * change the duration of the animation (default is .5 seconds) 
+	 * change the duration of the animation (default is .5 seconds)
 	 *
 	 * ```
 	 * lets.Go.to(foobarMc).duration(10);
-	 * 
+	 *
 	 * @param  value 	duration in seconds
 	 * @return       Go
 	 */
@@ -196,7 +198,7 @@ class Go
 	}
 	/**
 	 * change the x value of an object
-	 * 
+	 *
 	 * @param  value 	x-position
 	 * @return       Go
 	 */
@@ -207,7 +209,7 @@ class Go
 	}
 	/**
 	 * change the y value of an object
-	 * 
+	 *
 	 * @param  value 	y-position
 	 * @return       Go
 	 */
@@ -218,7 +220,7 @@ class Go
 	}
 	/**
 	 * change the rotation value of an object
-	 * 
+	 *
 	 * @param  value 	rotation in degrees (360)
 	 * @return       Go
 	 */
@@ -229,7 +231,7 @@ class Go
 	}
 	/**
 	 * change the alpha value of an object
-	 * 
+	 *
 	 * @param  value 	transparanty value (maximum value 1)
 	 * @return       Go
 	 */
@@ -240,7 +242,7 @@ class Go
 	}
 	/**
 	 * change the scale of an object
-	 * 
+	 *
 	 * @param  value 	scale (1 is 100% (original scale), 0.5 is 50%, 2 is 200%)
 	 * @return       Go
 	 */
@@ -253,7 +255,7 @@ class Go
 	/**
 	 * yoyo to the original values of an object
 	 * tween will run in the opposite direction so that the tween appears to go back and forth
-	 * 
+	 *
 	 * @return       Go
 	 */
 	inline public function yoyo():Go
@@ -263,8 +265,8 @@ class Go
 	}
 	/**
 	 * delay the animation in seconds
-	 * 
-	 * @param  timeInSeconds 	delay in seconds 
+	 *
+	 * @param  timeInSeconds 	delay in seconds
 	 * @return       Go
 	 */
 	inline public function delay(timeInSeconds:Float):Go
@@ -274,12 +276,12 @@ class Go
 	}
 	/**
 	 * change the property of an object
-	 * 
+	 *
 	 * @param  key   	description of the property as string
-	 * @param  value 	change to this value 
+	 * @param  value 	change to this value
 	 * @return       Go
 	 */
-	inline public function prop(key:String, value:Float):Go 
+	inline public function prop(key:String, value:Float):Go
 	{
 		var objValue = Reflect.getProperty(_target, key);
 		var _range = {key:key, from:(_isFrom) ? value : objValue , to:(!_isFrom) ? value : objValue };
@@ -288,7 +290,7 @@ class Go
 	}
 	/**
 	 * on completion of the animation call a function with param(s)
-	 * 
+	 *
 	 * @param  func         	function to call when animition is complete
 	 * @param  arr<Dynamic> 	params send to function
 	 * @return              Go
@@ -301,7 +303,7 @@ class Go
 	}
 	/**
 	 * on update of the animation call a function with param(s)
-	 * 
+	 *
 	 * @param  func         	function to call when animition is updated
 	 * @param  arr<Dynamic> 	params send to function
 	 * @return              Go
@@ -313,12 +315,12 @@ class Go
 		return this;
 	}
 	/**
-	 * change the default (lets.easing.Quad.easeOut) easing 
+	 * change the default (lets.easing.Quad.easeOut) easing
 	 *
 	 * ```
 	 * lets.Go.from(foobarMc, 1.5).x(500).easing(lets.easing.Cubic.easeOut);
 	 * ```
-	 * 
+	 *
 	 * @param  easing
 	 * @return		Go
 	 */
@@ -343,7 +345,7 @@ class Go
 	{
 		destroy();
 	}
-	
+
 	// ____________________________________ private ____________________________________
 
 	private function init():Void
@@ -351,12 +353,26 @@ class Go
 		if (Go.DEBUG) trace('init :: _trigger: ' + _trigger ); // debug
 
 		// [mck] make sure we use the frameRate from the original movie
-		var framerate:Int = (flash.Lib.current.stage.frameRate > 30) ? Std.int (flash.Lib.current.stage.frameRate) : 30;
+		var framerate : Int = (Lib.current.stage.frameRate > 30) ? Std.int (Lib.current.stage.frameRate) : 30;
 		// var framerate:Int = 30;
 		_trigger = (_trigger == null) ? new Timer(Std.int(1000 / framerate)) : _trigger;
 		_trigger.run = onEnterFrameHandler;
+
+		/*
+		// [mck] performance with timer is terrible
+		#if (flash || nme || openfl)
+		if(!Lib.current.stage.hasEventListener(Event.ENTER_FRAME))
+		{
+			Lib.current.stage.addEventListener(Event.ENTER_FRAME, onEnterFrameHandler);
+		}
+		#else
+		_trigger = (_trigger == null) ? new Timer(Std.int(1000 / framerate)) : _trigger;
+		_trigger.run = onEnterFrameHandler;
+		#end
+		*/
 	}
 
+	// private function onEnterFrameHandler( #if (flash || nme || openfl) e:Event #end ):Void
 	private function onEnterFrameHandler( ):Void
 	{
 		if (Go.DEBUG) trace('onEnterFrameHandler - ' + Lib.getTimer() ); // debug
@@ -367,14 +383,14 @@ class Go
 		{
 			// [mck] stop timer, we are done!
 			killTimer();
-		} 
-		else for( i in 0..._total ) 
+		}
+		else for( i in 0..._total )
 		{
-			// [mck] FIXME :: don't know exactly why I need to check if _tweens[i] != null, but I do. 
+			// [mck] FIXME :: don't know exactly why I need to check if _tweens[i] != null, but I do.
 			if(_tweens[i] != null) _tweens[i].update();
 		}
 	}
-	
+
 	private function update():Void
 	{
 		// [mck] FROM animation will be force to there from position
@@ -382,7 +398,7 @@ class Go
 			updateProperties(1);
 			_target.visible = true;
 			_isFrom = false; // [mck] never used after this
-		} 
+		}
 
 		// [mck] check for delay
 		if (_delay > 0) {
@@ -408,7 +424,7 @@ class Go
 		}
 	}
 
-	private function updateProperties(time:Int):Void 
+	private function updateProperties(time:Int):Void
 	{
 		if( Reflect.isFunction(_options.onUpdate) ) {
 			var func = _options.onUpdate;
@@ -432,13 +448,13 @@ class Go
 	}
 
 
-	private function complete():Void 
+	private function complete():Void
 	{
 		if(Go.DEBUG) trace('complete :: _duration: ' + _duration + ' / _initTime: ' + _initTime + ' / _tweens.length: ' + _tweens.length);
-	
-		if(_isYoyo) 
+
+		if(_isYoyo)
 		{
-			// [mck] reverse the props back to the original state			
+			// [mck] reverse the props back to the original state
 			for(n in _props.keys())
 			{
 				var range = _props.get(n);

@@ -1,6 +1,12 @@
 #TODO
 * performance?
 
+version 0.0.6
+* flash target with onEnterframe
+
+version 0.0.5
+* debug fixes
+
 version 0.0.4
 * duration also possible to set with chaining (little bit obsessive from me)
 * easeIn and easeOut (using code from Joshua Granick and Robert Penner)

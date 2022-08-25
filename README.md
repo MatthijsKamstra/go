@@ -2,22 +2,22 @@
 Lightweight, simple, compact, chainable tween library for Haxe/Openfl.
 
 [![Everybody in the place, lets go](http://img.youtube.com/vi/WY87o9IZXWg/0.jpg)](https://www.youtube.com/watch?v=WY87o9IZXWg)
- 
+
 Inspired by tween engines written in Haxe and ActionScript. I just wanted to see if I could build a tweening engine myself.
 And take all the good stuff from alll those other tween libraries (like Actuate and TweenMax)
 
-####WIP and not ready for production
+#### WIP and not ready for production
 I will be using it in my Haxe project to test it in a production environment.
 
 ## Installation
 
 This is still WIP, an experiment, so I decide not to add it to haxelib yet.
 
-But if you want to try it out via *haxelib*, you can install it with git 
+But if you want to try it out via *haxelib*, you can install it with git
 
 ```
 git clone https://github.com/MatthijsKamstra/go/
-haxelib dev go go
+haxelib dev lets.go go
 ```
 
 To include Go in an OpenFL project, add `<haxelib name="go" />` to your project.xml.
@@ -100,15 +100,15 @@ Go.to(sprite, 1.5).x(100).ease(Elastic.easeOut);
 
 It should be easy to use, so I decided to use chainging methode.
 
-You can animate 
+You can animate
 
-**to** 
+**to**
 
 `Go.to(target, 1.5).x(100);`
 
-and 
+and
 
-**from** 
+**from**
 
 `Go.from(target, 1.5).x(100);`
 
@@ -117,7 +117,7 @@ You can animate the default **properties** of a DisplayObject:
 
 * x
 * y
-* rotation 
+* rotation
 * alpha
 * scale
 
